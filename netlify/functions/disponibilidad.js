@@ -81,7 +81,8 @@ exports.handler = async (event) => {
     }
 
     return resp(200, { slots, bloqueado: false, motivo: null });
-  } catch (err) {
+ } catch (err) {
+        console.error('[disponibilidad] error:', err.message);
     return resp(500, { error: err.message });
   }
 };
