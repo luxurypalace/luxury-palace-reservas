@@ -1,0 +1,9 @@
+{
+  "name": "luxury-palace-reservas",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Sistema de reservas de Luxury Palace (salón de belleza) — formulario + Netlify Functions + Google Sheets, sin dependencias npm en las funciones.",
+  "engines": {
+    "node": ">=18"
+  }
+}

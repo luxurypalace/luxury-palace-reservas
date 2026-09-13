@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Luxury Palace — Reserva tu cita</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Montserrat:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --dorado: #b08d57;
+    --dorado-claro: #d9bd8c;
+    --dorado-brillo: #f3d9a4;
+    --rosa: #f7e9e3;
+    --rosa-suave: #fbf3ef;
+    --marron: #4a3025;
+    --blanco: #fffaf7;
+    --error: #b3413a;
+    --negro: #120d0a;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: 'Montserrat', sans-serif;
+    background: linear-gradient(180deg, var(--rosa-suave), var(--rosa));
+    color: var(--marron);
+    min-height: 100vh;
+  }
+  .oculto { display: none !important; }
+
+  /* ---------------- SPLASH ---------------- */
+  #splash {
+    position: fixed; inset: 0; z-index: 50;
+    background: radial-gradient(ellipse at center, #241a14 0%, var(--negro) 70%);
+    display: flex; align-items: center; justify-content: center;
+    overflow: hidden; cursor: pointer;
+  }
+  #splash .glow {
+    position: absolute; width: 140vw; height: 140vw; border-radius: 50%;
+    background: radial-gradient(circle, rgba(243,217,164,0.35) 0%, rgba(176,141,87,0.08) 40%, transparent 70%);
+    animation: pulso 3.2s ease-in-out infinite;
+  }
+  @keyframes pulso {
+    0%, 100% { transform: scale(0.9); opacity: 0.6; }
+    50% { transform: scale(1.12); opacity: 1; }
+  }
+  #splash .logo-wrap {
+    position: relative; width: min(78vw, 420px);
+    opacity: 0; transform: scale(0.75) translateY(10px);
+    animation: aparecer 1.4s cubic-bezier(.2,.9,.25,1) forwards 0.25s;
+  }
+  @keyframes aparecer {
+    to { opacity: 1; transform: scale(1) translateY(0); }
+  }
+  #splash img.logo { width: 100%; display: block; filter: drop-shadow(0 0 26px rgba(243,217,164,0.55)); border-radius: 6px; }
+  #splash .sweep {
+    position: absolute; inset: 0; border-radius: 6px; overflow: hidden; pointer-events: none;
+  }
+  #splash .sweep::after {
+    content: ''; position: absolute; top: -20%; left: -60%; width: 40%; height: 140%;
+    background: linear-gradient(100deg, transparent, rgba(255,244,214,0.75), transparent);
+    transform: skewX(-18deg);
+    animation: brillo 2.6s ease-in-out infinite 1.6s;
+  }
+  @keyframes brillo {
+    0% { left: -60%; }
+    45%, 100% { left: 130%; }
+  }
+  #splash .toque {
+    position: absolute; bottom: 9%; left: 0; right: 0; text-align: center;
+    color: var(--dorado-brillo); font-size: 0.72rem; letter-spacing: 0.2em; text-transform: uppercase;
+    opacity: 0; animation: fadein 1s ease forwards 2.4s;
+  }
+  @keyframes fadein { to { opacity: 0.85; } }
+
+  /* ---------------- LAYOUT GENERAL ---------------- */
+  .wrap { max-width: 640px; margin: 0 auto; padding: 24px 16px 100px; }
+  header.top { text-align: center; margin-bottom: 22px; }
+  header.top h1 {
+    font-family: 'Cormorant Garamond', serif; font-size: 2rem; letter-spacing: 0.08em; color: var(--dorado); margin: 0 0 2px;
+  }
+  header.top p { margin: 0; letter-spacing: 0.15em; font-size: 0.72rem; text-transform: uppercase; color: var(--marron); opacity: 0.65; }
+
+  .card {
+    background: var(--blanco); border: 1px solid var(--dorado-claro); border-radius: 14px;
+    padding: 22px; margin-bottom: 18px; box-shadow: 0 4px 18px rgba(176,141,87,0.12);
+  }
+  .card h2 { font-family: 'Cormorant Garamond', serif; font-size: 1.4rem; color: var(--dorado); margin-top: 0; }
+
+  /* ---- botones de categoría (home) ---- */
+  .categorias-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  @media (max-width: 420px) { .categorias-grid { grid-template-columns: 1fr; } }
+  .categoria-btn {
+    background: #fff; border: 1px solid var(--dorado-claro); border-radius: 14px; padding: 20px 14px;
+    text-align: center; cursor: pointer; transition: transform .15s, box-shadow .15s;
+  }
+  .categoria-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(176,141,87,0.22); }
+  .categoria-btn.hecha { border-color: #7fae83; background: #f4faf4; }
+  .categoria-btn .icono { font-size: 1.8rem; display: block; margin-bottom: 8px; }
+  .categoria-btn .nombre { font-weight: 600; font-size: 0.92rem; }
+  .categoria-btn .check { font-size: 0.75rem; color: #4f8c55; margin-top: 4px; }
+
+  /* ---- servicios dentro de una categoría ---- */
+  .servicio-row {
+    display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap;
+    padding: 10px 12px; border: 1px solid #eee0d5; border-radius: 10px; margin-bottom: 8px; background: #fff;
+  }
+  .servicio-row.activo { border-color: var(--dorado); background: #fdf6ec; }
+  .servicio-info { display: flex; align-items: center; gap: 10px; width: 100%; }
+  .servicio-info input[type=checkbox] { width: 18px; height: 18px; accent-color: var(--dorado); flex-shrink: 0; }
+  .servicio-nombre { font-weight: 500; flex: 1; }
+  .servicio-precio { font-size: 0.85rem; opacity: 0.7; white-space: nowrap; }
+  .personal-select { margin-top: 8px; width: 100%; }
+  select, input[type=text], input[type=tel], input[type=email], input[type=date] {
+    width: 100%; padding: 10px 12px; border: 1px solid #e2cfb8; border-radius: 8px;
+    font-family: inherit; font-size: 0.95rem; background: #fff; color: var(--marron);
+  }
+  .btn {
+    display: inline-block; padding: 13px 22px; border-radius: 999px; border: none;
+    background: var(--dorado); color: #fff; font-weight: 600; letter-spacing: 0.04em;
+    cursor: pointer; font-size: 0.95rem; width: 100%; text-align: center;
+  }
+  .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+  .btn-secundario { background: transparent; color: var(--dorado); border: 1px solid var(--dorado); }
+  .btn-fila { display: flex; gap: 10px; margin-top: 14px; }
+  .btn-fila .btn { width: auto; flex: 1; }
+
+  /* ---- upsell ---- */
+  .upsell-item {
+    display: flex; align-items: center; justify-content: space-between;
+    border: 1px solid var(--dorado-claro); border-radius: 12px; padding: 14px 16px; margin-bottom: 10px; background: #fdf6ec;
+  }
+  .upsell-item .txt .icono { font-size: 1.3rem; margin-right: 8px; }
+  .upsell-item button { background: var(--dorado); color: #fff; border: none; border-radius: 999px; padding: 8px 16px; font-size: 0.85rem; cursor: pointer; }
+
+  /* ---- carrito flotante ---- */
+  #carrito-flotante {
+    position: fixed; bottom: 0; left: 0; right: 0; z-index: 20;
+    background: var(--marron); color: #fff; padding: 12px 16px; display: flex; align-items: center; justify-content: space-between;
+    box-shadow: 0 -4px 14px rgba(0,0,0,0.18);
+  }
+  #carrito-flotante .info { font-size: 0.88rem; }
+  #carrito-flotante .total { color: var(--dorado-brillo); font-weight: 700; }
+  #carrito-flotante button { background: var(--dorado); color: #fff; border: none; border-radius: 999px; padding: 9px 16px; font-size: 0.85rem; cursor: pointer; }
+
+  .slots { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+  .slot { padding: 8px 14px; border: 1px solid var(--dorado-claro); border-radius: 8px; cursor: pointer; font-size: 0.88rem; background: #fff; }
+  .slot.elegido { background: var(--dorado); color: #fff; border-color: var(--dorado); }
+  .paso-titulo { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--dorado); margin-bottom: 4px; }
+  .resumen-linea { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px dashed #eee0d5; font-size: 0.92rem; }
+  .resumen-total { display: flex; justify-content: space-between; font-weight: 700; padding-top: 10px; font-size: 1.05rem; }
+  .banco { background: #fdf6ec; border: 1px solid var(--dorado-claro); border-radius: 10px; padding: 14px; margin: 12px 0; font-size: 0.9rem; }
+  .aviso { font-size: 0.85rem; color: var(--error); margin-top: 6px; }
+  label { display: block; font-size: 0.85rem; margin: 10px 0 4px; }
+  footer.pie { text-align: center; font-size: 0.75rem; opacity: 0.55; margin-top: 30px; }
+  .volver { font-size: 0.8rem; color: var(--dorado); cursor: pointer; margin-bottom: 10px; display: inline-block; }
+</style>
+</head>
+<body>
+
+<!-- ============== SPLASH ============== -->
+<div id="splash">
+  <div class="glow"></div>
+  <div class="logo-wrap">
+    <img class="logo" src="assets/logo-crop.png" alt="Luxury Palace" />
+    <div class="sweep"></div>
+  </div>
+  <div class="toque">Toca para entrar</div>
+</div>
+
+<div class="wrap">
+  <header class="top">
+    <h1>Luxury Palace</h1>
+    <p>Salón de belleza · Reserva tu cita</p>
+  </header>
+
+  <!-- ============== INICIO: categorías ============== -->
+  <div class="card" id="pantalla-inicio">
+    <h2>¿Qué te quieres hacer hoy?</h2>
+    <p style="font-size:0.85rem;opacity:0.75;margin-top:-8px;">Elige una categoría para empezar. Puedes ir agregando más antes de reservar.</p>
+    <div class="categorias-grid" id="grid-categorias"></div>
+    <div class="btn-fila">
+      <button class="btn oculto" id="btn-ir-a-agenda">Continuar a elegir fecha y hora</button>
+    </div>
+  </div>
+
+  <!-- ============== CATEGORÍA: elegir servicios ============== -->
+  <div class="card oculto" id="pantalla-categoria">
+    <span class="volver" id="volver-inicio">← Volver a categorías</span>
+    <h2 id="categoria-titulo"></h2>
+    <div id="lista-servicios-categoria"></div>
+    <button class="btn" id="btn-listo-categoria" style="margin-top:10px;">Listo con esta categoría</button>
+  </div>
+
+  <!-- ============== UPSELL ============== -->
+  <div class="card oculto" id="pantalla-upsell">
+    <h2>¿Aprovechas para agregar algo más?</h2>
+    <p style="font-size:0.85rem;opacity:0.75;margin-top:-8px;">Ya que tienes tu cita agendada, esto se hace en la misma visita:</p>
+    <div id="lista-upsell"></div>
+    <button class="btn btn-secundario" id="btn-no-gracias" style="margin-top:6px;">No gracias, continuar con mi cita</button>
+  </div>
+
+  <!-- ============== FECHA ============== -->
+  <div class="card oculto" id="paso-fecha">
+    <h2>Elige la fecha</h2>
+    <label for="input-fecha">Fecha de la cita</label>
+    <input type="date" id="input-fecha" />
+    <div class="aviso oculto" id="aviso-fecha"></div>
+    <button class="btn" id="btn-a-horarios" style="margin-top:14px;">Continuar</button>
+  </div>
+
+  <!-- ============== HORARIOS ============== -->
+  <div class="card oculto" id="paso-horarios">
+    <h2>Elige el horario de cada servicio</h2>
+    <div id="lista-horarios"></div>
+    <div class="aviso oculto" id="aviso-horarios"></div>
+    <button class="btn oculto" id="btn-a-datos" style="margin-top:14px;">Continuar</button>
+  </div>
+
+  <!-- ============== DATOS + PAGO ============== -->
+  <div class="card oculto" id="paso-datos">
+    <h2>Tus datos y confirmación</h2>
+    <label for="cliente-nombre">Nombre completo</label>
+    <input type="text" id="cliente-nombre" />
+    <label for="cliente-telefono">Teléfono</label>
+    <input type="tel" id="cliente-telefono" />
+    <label for="cliente-email">Email</label>
+    <input type="email" id="cliente-email" />
+
+    <div id="resumen" style="margin-top:16px;"></div>
+
+    <div class="banco">
+      <b>Transferencia del 20% para confirmar</b><br/>
+      Araujo Villarreal Ana Olga<br/>
+      Banco Pichincha — Cuenta de ahorros<br/>
+      <span id="banco-cuenta">Nro. de cuenta: (configurar)</span>
+    </div>
+
+    <label for="input-comprobante">Comprobante de la transferencia (foto o PDF)</label>
+    <input type="file" id="input-comprobante" accept="image/*,application/pdf" />
+
+    <div class="aviso oculto" id="aviso-envio"></div>
+    <button class="btn" id="btn-confirmar" style="margin-top:14px;">Confirmar cita</button>
+  </div>
+
+  <!-- ============== ÉXITO ============== -->
+  <div class="card oculto" id="paso-exito">
+    <h2>¡Cita confirmada!</h2>
+    <p id="mensaje-exito"></p>
+  </div>
+
+  <footer class="pie">Luxury Palace · tiempo máximo de espera: 10 minutos · modificaciones con mínimo 2h de anticipación</footer>
+</div>
+
+<div id="carrito-flotante" class="oculto">
+  <div class="info">🛍️ <span id="carrito-cantidad">0</span> servicio(s) · <span class="total" id="carrito-total">$0.00</span></div>
+  <button id="btn-ver-carrito-agenda">Ir a agendar</button>
+</div>
+
+<script>
+// ---------------------------------------------------------------------------
+// Catálogo (debe reflejar config/servicios.js del backend — se mantiene una
+// copia liviana aquí para pintar la UI sin depender del servidor).
+// ---------------------------------------------------------------------------
+const PERSONAL_NOMBRES = { ana: 'Ana', ceci: 'Ceci', leana: 'Leana' };
+const CATEGORIAS = [
+  { id: 'unas', nombre: 'Uñas', icono: '💅' },
+  { id: 'pestanas_cejas', nombre: 'Pestañas y cejas', icono: '👁️' },
+  { id: 'cabello_cortes', nombre: 'Cabello — cortes', icono: '✂️' },
+  { id: 'cabello_tratamientos', nombre: 'Cabello — tratamientos', icono: '✨' },
+  { id: 'corporal', nombre: 'Depilación corporal', icono: '🌿' },
+  { id: 'faciales', nombre: 'Faciales', icono: '🧖‍♀️' },
+];
+const SERVICIOS = [
+  { id: 'manicura_normal', nombre: 'Manicura esmalte normal', categoria: 'unas', precio: 7, personal: ['ana','ceci'] },
+  { id: 'manicura_semi', nombre: 'Manicura esmalte semipermanente', categoria: 'unas', precio: 10, personal: ['ana','ceci'] },
+  { id: 'pedicura_normal', nombre: 'Pedicura esmalte normal', categoria: 'unas', precio: 10, personal: ['ana','ceci'] },
+  { id: 'pedicura_semi', nombre: 'Pedicura esmalte semipermanente', categoria: 'unas', precio: 15, personal: ['ana','ceci'] },
+  { id: 'manicura_hombre', nombre: 'Manicura caballero', categoria: 'unas', precio: 7, personal: ['ana','ceci'] },
+  { id: 'pedicura_hombre', nombre: 'Pedicura caballero', categoria: 'unas', precio: 8, personal: ['ana','ceci'] },
+  { id: 'base_rubber', nombre: 'Base rubber', categoria: 'unas', precio: 15, personal: ['ana','ceci'] },
+  { id: 'unas_gel', nombre: 'Uñas acrílico / poligel / gel', categoria: 'unas', precio: 20, personal: ['ana','ceci'] },
+  { id: 'unas_esculpidas', nombre: 'Uñas esculpidas', categoria: 'unas', precio: 25, personal: ['ana','ceci'] },
+  { id: 'jelly_spa', nombre: 'Jelly spa', categoria: 'unas', precio: 18, personal: ['ana','ceci'] },
+
+  { id: 'pestanas_extension', nombre: 'Pestañas (extensión)', categoria: 'pestanas_cejas', precio: 25, personal: ['leana'] },
+  { id: 'lifting_pestanas', nombre: 'Lifting de pestañas', categoria: 'pestanas_cejas', precio: 15, personal: ['leana'] },
+  { id: 'laminado_cejas', nombre: 'Laminado de cejas', categoria: 'pestanas_cejas', precio: 15, personal: ['leana'] },
+  { id: 'depilacion_cejas', nombre: 'Depilación de cejas', categoria: 'pestanas_cejas', precio: 8, personal: ['leana'] },
+
+  { id: 'corte_dama', nombre: 'Corte dama', categoria: 'cabello_cortes', precio: 8, personal: ['ceci'] },
+  { id: 'cepillado', nombre: 'Cepillado', categoria: 'cabello_cortes', precio: 10, personal: ['ceci'] },
+  { id: 'corte_caballero', nombre: 'Corte caballero', categoria: 'cabello_cortes', precio: 6, personal: ['ceci'] },
+
+  { id: 'hidratacion', nombre: 'Hidratación', categoria: 'cabello_tratamientos', precio: 25, personal: ['ceci'] },
+  { id: 'tinte', nombre: 'Tinte', categoria: 'cabello_tratamientos', precio: 35, personal: ['ceci'] },
+  { id: 'keratina', nombre: 'Keratina', categoria: 'cabello_tratamientos', precio: 60, personal: ['ceci'] },
+
+  { id: 'corp_axilas', nombre: 'Axilas', categoria: 'corporal', precio: 8, personal: ['ana','ceci'] },
+  { id: 'corp_medio_brazo', nombre: 'Medio brazo', categoria: 'corporal', precio: 10, personal: ['ana','ceci'] },
+  { id: 'corp_brazo_completo', nombre: 'Brazo completo', categoria: 'corporal', precio: 12, personal: ['ana','ceci'] },
+  { id: 'corp_abdomen', nombre: 'Abdomen', categoria: 'corporal', precio: 10, personal: ['ana','ceci'] },
+  { id: 'corp_media_pierna', nombre: 'Media pierna', categoria: 'corporal', precio: 12, personal: ['ana','ceci'] },
+  { id: 'corp_pierna_completa', nombre: 'Pierna completa', categoria: 'corporal', precio: 15, personal: ['ana','ceci'] },
+  { id: 'corp_bikini_basico', nombre: 'Bikini básico', categoria: 'corporal', precio: 12, personal: ['ana','ceci'] },
+  { id: 'corp_bikini_brasileno', nombre: 'Bikini brasileño', categoria: 'corporal', precio: 16, personal: ['ana','ceci'] },
+  { id: 'corp_espalda', nombre: 'Espalda', categoria: 'corporal', precio: 16, personal: ['ana','ceci'] },
+  { id: 'corp_genital_hombre', nombre: 'Genital completo (hombre)', categoria: 'corporal', precio: 16, personal: ['ana','ceci'] },
+
+  { id: 'facial_basico', nombre: 'Facial (precio por confirmar)', categoria: 'faciales', precio: 0, personal: ['leana'] },
+];
+const DURACION_MIN = 90; // ver nota de duración uniforme en config/servicios.js
+
+// ---------------------------------------------------------------------------
+// Estado global
+// ---------------------------------------------------------------------------
+const estado = {
+  carrito: [],            // [{servicioId, personalId}] en orden de agregado
+  categoriasVisitadas: new Set(),
+  fecha: null,
+  cadena: [],             // horarios asignados, calculado en el paso de agenda
+};
+
+function nombreServicio(id) { return (SERVICIOS.find(s => s.id === id) || {}).nombre || id; }
+function precioServicio(id) { return (SERVICIOS.find(s => s.id === id) || {}).precio || 0; }
+function nombrePersonal(p) { return PERSONAL_NOMBRES[p] || p; }
+
+// ---------------------------------------------------------------------------
+// SPLASH
+// ---------------------------------------------------------------------------
+const splash = document.getElementById('splash');
+function cerrarSplash() { splash.classList.add('oculto'); }
+splash.addEventListener('click', cerrarSplash);
+setTimeout(cerrarSplash, 4200);
+
+// ---------------------------------------------------------------------------
+// PANTALLA INICIO — grid de categorías
+// ---------------------------------------------------------------------------
+const gridCategorias = document.getElementById('grid-categorias');
+function renderGridCategorias() {
+  gridCategorias.innerHTML = '';
+  CATEGORIAS.forEach(cat => {
+    const hecha = estado.categoriasVisitadas.has(cat.id);
+    const div = document.createElement('div');
+    div.className = 'categoria-btn' + (hecha ? ' hecha' : '');
+    div.innerHTML = `<span class="icono">${cat.icono}</span><span class="nombre">${cat.nombre}</span>` +
+      (hecha ? '<div class="check">✓ agregado</div>' : '');
+    div.addEventListener('click', () => abrirCategoria(cat.id));
+    gridCategorias.appendChild(div);
+  });
+  document.getElementById('btn-ir-a-agenda').classList.toggle('oculto', estado.carrito.length === 0);
+}
+renderGridCategorias();
+
+function mostrarPantalla(id) {
+  ['pantalla-inicio','pantalla-categoria','pantalla-upsell','paso-fecha','paso-horarios','paso-datos','paso-exito']
+    .forEach(p => document.getElementById(p).classList.toggle('oculto', p !== id));
+}
+
+// ---------------------------------------------------------------------------
+// PANTALLA CATEGORÍA — elegir servicios + personal dentro de una categoría
+// ---------------------------------------------------------------------------
+document.getElementById('volver-inicio').addEventListener('click', () => { renderGridCategorias(); mostrarPantalla('pantalla-inicio'); });
+
+function abrirCategoria(catId) {
+  const cat = CATEGORIAS.find(c => c.id === catId);
+  document.getElementById('categoria-titulo').textContent = cat.nombre;
+  const cont = document.getElementById('lista-servicios-categoria');
+  cont.innerHTML = '';
+  SERVICIOS.filter(s => s.categoria === catId).forEach(s => {
+    const yaEnCarrito = estado.carrito.some(c => c.servicioId === s.id);
+    const row = document.createElement('div');
+    row.className = 'servicio-row' + (yaEnCarrito ? ' activo' : '');
+    row.id = `cat-row-${s.id}`;
+    const opciones = s.personal.map(p => `<option value="${p}">${nombrePersonal(p)}</option>`).join('');
+    row.innerHTML = `
+      <div class="servicio-info">
+        <input type="checkbox" data-servicio="${s.id}" ${yaEnCarrito ? 'checked' : ''} />
+        <span class="servicio-nombre">${s.nombre}</span>
+        <span class="servicio-precio">${s.precio > 0 ? '$' + s.precio.toFixed(2) : 'precio por confirmar'}</span>
+      </div>
+      <div class="personal-select ${yaEnCarrito ? '' : 'oculto'}" id="cat-personal-${s.id}">
+        <select data-personal-de="${s.id}">${opciones}</select>
+      </div>`;
+    cont.appendChild(row);
+  });
+
+  cont.onchange = (e) => {
+    if (e.target.matches('input[type=checkbox]')) {
+      const id = e.target.dataset.servicio;
+      document.getElementById(`cat-row-${id}`).classList.toggle('activo', e.target.checked);
+      document.getElementById(`cat-personal-${id}`).classList.toggle('oculto', !e.target.checked);
+    }
+  };
+
+  document.getElementById('btn-listo-categoria').onclick = () => {
+    // agrega/actualiza los servicios marcados de esta categoría al carrito
+    const marcados = [...cont.querySelectorAll('input[type=checkbox]:checked')];
+    // primero quita del carrito los de esta categoría que ya no estén marcados
+    estado.carrito = estado.carrito.filter(c => {
+      const servicio = SERVICIOS.find(s => s.id === c.servicioId);
+      if (servicio.categoria !== catId) return true;
+      return marcados.some(m => m.dataset.servicio === c.servicioId);
+    });
+    marcados.forEach(chk => {
+      const id = chk.dataset.servicio;
+      const select = document.querySelector(`select[data-personal-de="${id}"]`);
+      const existente = estado.carrito.find(c => c.servicioId === id);
+      if (existente) existente.personalId = select.value;
+      else estado.carrito.push({ servicioId: id, personalId: select.value });
+    });
+    estado.categoriasVisitadas.add(catId);
+    actualizarCarritoFlotante();
+    mostrarUpsell(catId);
+  };
+
+  mostrarPantalla('pantalla-categoria');
+}
+
+// ---------------------------------------------------------------------------
+// UPSELL — sugerir categorías que aún no se han visitado
+// ---------------------------------------------------------------------------
+function mostrarUpsell(catRecienVisitada) {
+  const pendientes = CATEGORIAS.filter(c => !estado.categoriasVisitadas.has(c.id));
+  if (pendientes.length === 0 || estado.carrito.length === 0) {
+    renderGridCategorias();
+    mostrarPantalla('pantalla-inicio');
+    return;
+  }
+  const cont = document.getElementById('lista-upsell');
+  cont.innerHTML = '';
+  pendientes.forEach(cat => {
+    const div = document.createElement('div');
+    div.className = 'upsell-item';
+    div.innerHTML = `<div class="txt"><span class="icono">${cat.icono}</span>${cat.nombre}</div>
+      <button>Agregar</button>`;
+    div.querySelector('button').addEventListener('click', () => abrirCategoria(cat.id));
+    cont.appendChild(div);
+  });
+  document.getElementById('btn-no-gracias').onclick = () => { renderGridCategorias(); mostrarPantalla('pantalla-inicio'); };
+  mostrarPantalla('pantalla-upsell');
+}
+
+// ---------------------------------------------------------------------------
+// CARRITO FLOTANTE
+// ---------------------------------------------------------------------------
+function actualizarCarritoFlotante() {
+  const barra = document.getElementById('carrito-flotante');
+  if (estado.carrito.length === 0) { barra.classList.add('oculto'); return; }
+  barra.classList.remove('oculto');
+  document.getElementById('carrito-cantidad').textContent = estado.carrito.length;
+  const total = estado.carrito.reduce((acc, c) => acc + precioServicio(c.servicioId), 0);
+  document.getElementById('carrito-total').textContent = `$${total.toFixed(2)}`;
+}
+document.getElementById('btn-ver-carrito-agenda').addEventListener('click', irAAgenda);
+document.getElementById('btn-ir-a-agenda').addEventListener('click', irAAgenda);
+
+function irAAgenda() {
+  if (estado.carrito.length === 0) return;
+  estado.fecha = null;
+  estado.cadena = [];
+  mostrarPantalla('paso-fecha');
+  const hoy = new Date().toISOString().slice(0,10);
+  document.getElementById('input-fecha').min = hoy;
+}
+
+// ---------------------------------------------------------------------------
+// PASO FECHA
+// ---------------------------------------------------------------------------
+document.getElementById('btn-a-horarios').addEventListener('click', () => {
+  const fecha = document.getElementById('input-fecha').value;
+  if (!fecha) {
+    const a = document.getElementById('aviso-fecha');
+    a.textContent = 'Elige una fecha.';
+    a.classList.remove('oculto');
+    return;
+  }
+  estado.fecha = fecha;
+  estado.cadena = [];
+  mostrarPantalla('paso-horarios');
+  renderPasoHorarios();
+});
+
+// ---------------------------------------------------------------------------
+// PASO HORARIOS (misma lógica secuencial que el backend espera)
+// ---------------------------------------------------------------------------
+async function renderPasoHorarios() {
+  const cont = document.getElementById('lista-horarios');
+  cont.innerHTML = '';
+  document.getElementById('aviso-horarios').classList.add('oculto');
+  document.getElementById('btn-a-datos').classList.add('oculto');
+
+  for (let i = 0; i < estado.carrito.length; i++) {
+    const item = estado.carrito[i];
+    const bloque = document.createElement('div');
+    bloque.style.marginBottom = '18px';
+    bloque.innerHTML = `
+      <div class="paso-titulo">Servicio ${i + 1} de ${estado.carrito.length}</div>
+      <div><b>${nombreServicio(item.servicioId)}</b> con ${nombrePersonal(item.personalId)}</div>
+      <div class="slots" id="slots-${i}"><span style="opacity:0.6;font-size:0.85rem;">Buscando horarios…</span></div>
+    `;
+    cont.appendChild(bloque);
+
+    const cadenaPrevia = estado.cadena.slice(0, i).map(c => ({ finMin: c.finMin }));
+    let data;
+    try {
+      const res = await fetch('/.netlify/functions/disponibilidad', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fecha: estado.fecha, servicioId: item.servicioId, personalId: item.personalId, cadenaPrevia })
+      });
+      data = await res.json();
+    } catch (e) {
+      data = { slots: [], bloqueado: true, motivo: 'Error de conexión, intenta de nuevo.' };
+    }
+
+    const slotsDiv = document.getElementById(`slots-${i}`);
+    slotsDiv.innerHTML = '';
+    if (data.bloqueado || !data.slots || data.slots.length === 0) {
+      slotsDiv.innerHTML = `<span style="color:#b3413a;font-size:0.85rem;">${data.motivo || 'No hay horarios disponibles ese día.'}</span>`;
+      break;
+    }
+
+    await new Promise(resolveSlot => {
+      data.slots.forEach(hora => {
+        const btn = document.createElement('div');
+        btn.className = 'slot';
+        btn.textContent = hora;
+        btn.addEventListener('click', () => {
+          [...slotsDiv.children].forEach(c => c.classList.remove('elegido'));
+          btn.classList.add('elegido');
+          const [h, m] = hora.split(':').map(Number);
+          const inicioMin = h * 60 + m;
+          const finMin = inicioMin + DURACION_MIN;
+          const horaFin = `${String(Math.floor(finMin/60)).padStart(2,'0')}:${String(finMin%60).padStart(2,'0')}`;
+          estado.cadena[i] = { servicioId: item.servicioId, personalId: item.personalId, horaInicio: hora, horaFin, finMin };
+          estado.cadena.length = i + 1;
+          resolveSlot();
+          continuarSiCompleto();
+        });
+        slotsDiv.appendChild(btn);
+      });
+    });
+
+    await new Promise(resolveElegido => {
+      const check = setInterval(() => {
+        if (estado.cadena[i]) { clearInterval(check); resolveElegido(); }
+      }, 200);
+    });
+  }
+}
+
+function continuarSiCompleto() {
+  if (estado.cadena.length === estado.carrito.length && estado.cadena.every(Boolean)) {
+    document.getElementById('btn-a-datos').classList.remove('oculto');
+  }
+}
+
+document.getElementById('btn-a-datos').addEventListener('click', () => {
+  mostrarPantalla('paso-datos');
+  renderResumen();
+});
+
+// ---------------------------------------------------------------------------
+// PASO DATOS + RESUMEN + CONFIRMACIÓN
+// ---------------------------------------------------------------------------
+function renderResumen() {
+  const cont = document.getElementById('resumen');
+  let total = 0;
+  let html = '<h3 style="font-size:1rem;">Resumen de tu cita</h3>';
+  estado.cadena.forEach(seg => {
+    const precio = precioServicio(seg.servicioId);
+    total += precio;
+    html += `<div class="resumen-linea"><span>${nombreServicio(seg.servicioId)} (${nombrePersonal(seg.personalId)}) — ${seg.horaInicio}</span><span>$${precio.toFixed(2)}</span></div>`;
+  });
+  const abono = Math.round(total * 0.20 * 100) / 100;
+  html += `<div class="resumen-total"><span>Total</span><span>$${total.toFixed(2)}</span></div>`;
+  html += `<div class="resumen-total" style="color:#b08d57;"><span>Abono a transferir (20%)</span><span>$${abono.toFixed(2)}</span></div>`;
+  cont.innerHTML = html;
+}
+
+function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result.split(',')[1]);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+document.getElementById('btn-confirmar').addEventListener('click', async () => {
+  const nombre = document.getElementById('cliente-nombre').value.trim();
+  const telefono = document.getElementById('cliente-telefono').value.trim();
+  const email = document.getElementById('cliente-email').value.trim();
+  const archivo = document.getElementById('input-comprobante').files[0];
+  const aviso = document.getElementById('aviso-envio');
+
+  if (!nombre || !telefono || !email || !archivo) {
+    aviso.textContent = 'Completa tus datos y adjunta el comprobante de pago.';
+    aviso.classList.remove('oculto');
+    return;
+  }
+
+  const btn = document.getElementById('btn-confirmar');
+  btn.disabled = true;
+  btn.textContent = 'Enviando…';
+
+  try {
+    const contentBase64 = await fileToBase64(archivo);
+    const segmentos = estado.cadena.map(seg => ({ ...seg, fecha: estado.fecha }));
+    const res = await fetch('/.netlify/functions/reservar', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        cliente: { nombre, telefono, email },
+        segmentos,
+        comprobante: { filename: archivo.name, mimeType: archivo.type, contentBase64 }
+      })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'No se pudo confirmar la cita');
+
+    document.getElementById('carrito-flotante').classList.add('oculto');
+    mostrarPantalla('paso-exito');
+    document.getElementById('mensaje-exito').textContent =
+      `Te enviamos la confirmación a ${email}. Total $${data.montoTotal.toFixed(2)}, abono $${data.montoAbono.toFixed(2)}.`;
+  } catch (e) {
+    aviso.textContent = e.message;
+    aviso.classList.remove('oculto');
+    btn.disabled = false;
+    btn.textContent = 'Confirmar cita';
+  }
+});
+</script>
+</body>
+</html>
