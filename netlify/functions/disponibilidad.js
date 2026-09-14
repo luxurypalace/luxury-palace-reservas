@@ -21,6 +21,26 @@
 const { readRange } = require('./_sheets');
 const { SERVICIOS, HORARIO } = require('../../config/servicios');
 
+// Fecha y hora actual en Ecuador (America/Guayaquil), para no ofrecer
+// horarios que ya pasaron cuando se está reservando para el día de hoy.
+function ahoraEnQuito() {
+  const fmt = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Guayaquil',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  });
+  const parts = fmt.formatToParts(new Date());
+  const get = (t) => parts.find((p) => p.type === t).value;
+  return {
+    fecha: `${get('year')}-${get('month')}-${get('day')}`,
+    minutos: parseInt(get('hour'), 10) * 60 + parseInt(get('minute'), 10),
+  };
+}
+
 function minToHHMM(min) {
   const h = Math.floor(min / 60).toString().padStart(2, '0');
   const m = (min % 60).toString().padStart(2, '0');
@@ -47,13 +67,22 @@ exports.handler = async (event) => {
       earliest = ultimo.finMin;
     }
 
+    // Si la fecha elegida es HOY (hora Ecuador), no se puede ofrecer un horario
+    // que ya pasó — el punto de partida sube hasta la hora actual.
+    const { fecha: hoyEC, minutos: ahoraMinEC } = ahoraEnQuito();
+    if (fecha === hoyEC && ahoraMinEC > earliest) {
+      earliest = ahoraMinEC;
+    }
+
     // Regla dura: si ya no se puede iniciar un nuevo segmento antes de las 18:00,
     // no hay más horarios disponibles hoy para agregar servicios.
     if (earliest > HORARIO.ultimoInicioMin) {
       return resp(200, {
         slots: [],
         bloqueado: true,
-        motivo: 'La jornada ya no permite agregar otro servicio hoy (el límite de inicio es 18:00). Elige otra fecha para este servicio o quítalo de la cita.',
+        motivo: fecha === hoyEC
+          ? 'Ya no quedan horarios disponibles por hoy. Elige otra fecha.'
+          : 'La jornada ya no permite agregar otro servicio hoy (el límite de inicio es 18:00). Elige otra fecha para este servicio o quítalo de la cita.',
       });
     }
 
@@ -81,8 +110,8 @@ exports.handler = async (event) => {
     }
 
     return resp(200, { slots, bloqueado: false, motivo: null });
- } catch (err) {
-        console.error('[disponibilidad] error:', err.message);
+  } catch (err) {
+    console.error('[disponibilidad] error:', err.message);
     return resp(500, { error: err.message });
   }
 };
