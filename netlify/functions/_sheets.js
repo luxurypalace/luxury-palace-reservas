@@ -51,11 +51,16 @@ async function getAccessToken() {
     return cachedToken.token;
   }
 
-  const clientEmail = process.env.GOOGLE_CLIENT_EMAIL;
-  const privateKey = (process.env.GOOGLE_PRIVATE_KEY || '').replace(/\\n/g, '\n');
-  if (!clientEmail || !privateKey) {
-    throw new Error('Faltan GOOGLE_CLIENT_EMAIL / GOOGLE_PRIVATE_KEY en el entorno');
-  }
+ const clientEmail = process.env.GOOGLE_CLIENT_EMAIL;
+    let privateKey;
+    if (process.env.GOOGLE_PRIVATE_KEY_B64) {
+      privateKey = Buffer.from(process.env.GOOGLE_PRIVATE_KEY_B64, 'base64').toString('utf8');
+    } else {
+      privateKey = (process.env.GOOGLE_PRIVATE_KEY || '').replace(/\\n/g, '\n');
+    }
+    if (!clientEmail || !privateKey) {
+      throw new Error('Faltan GOOGLE_CLIENT_EMAIL / GOOGLE_PRIVATE_KEY(_B64) en el entorno');
+    }
 
   const now = Math.floor(Date.now() / 1000);
   const header = { alg: 'RS256', typ: 'JWT' };
