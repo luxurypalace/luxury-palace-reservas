@@ -252,10 +252,12 @@
     box-shadow: 0 6px 16px rgba(154,116,73,0.38), inset 0 1px 0 rgba(255,255,255,0.5);
   }
   .sin-horarios {
-    display: inline-block; font-size: 0.85rem; color: var(--error);
+    display: block; font-size: 0.85rem; color: var(--error);
     background: rgba(255,255,255,0.5); border: 1px solid rgba(179,65,58,0.25);
     padding: 8px 12px; border-radius: 10px;
   }
+  .btn-fila-sin-horarios { margin-top: 10px; }
+  .btn-fila-sin-horarios .btn { font-size: 0.82rem; padding: 11px 14px; }
 
   .paso-titulo { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--dorado); margin-bottom: 4px; }
   .resumen-linea { display: flex; justify-content: space-between; padding: 7px 0; border-bottom: 1px dashed rgba(226,207,184,0.7); font-size: 0.92rem; }
@@ -734,7 +736,31 @@ async function renderPasoHorarios() {
     const slotsDiv = document.getElementById(`slots-${i}`);
     slotsDiv.innerHTML = '';
     if (data.bloqueado || !data.slots || data.slots.length === 0) {
-      slotsDiv.innerHTML = `<span class="sin-horarios">${data.motivo || 'No hay horarios disponibles ese día.'}</span>`;
+      slotsDiv.innerHTML = `
+        <span class="sin-horarios">${data.motivo || 'No hay horarios disponibles ese día.'}</span>
+        <div class="btn-fila btn-fila-sin-horarios">
+          <button type="button" class="btn btn-secundario" id="btn-cambiar-fecha-${i}">Cambiar de fecha</button>
+          <button type="button" class="btn btn-secundario" id="btn-quitar-servicio-${i}">Quitar este servicio</button>
+        </div>`;
+
+      document.getElementById(`btn-cambiar-fecha-${i}`).addEventListener('click', () => {
+        estado.cadena = [];
+        document.getElementById('input-fecha').value = estado.fecha || '';
+        mostrarPantalla('paso-fecha');
+      });
+
+      document.getElementById(`btn-quitar-servicio-${i}`).addEventListener('click', () => {
+        estado.carrito.splice(i, 1);
+        estado.cadena = [];
+        actualizarCarritoFlotante();
+        if (estado.carrito.length === 0) {
+          renderGridCategorias();
+          mostrarPantalla('pantalla-inicio');
+        } else {
+          renderPasoHorarios();
+        }
+      });
+
       break;
     }
 
