@@ -116,16 +116,33 @@ exports.handler = async (event) => {
 
     // --- Subir comprobante a Telegram y avisar al negocio ---
     const buffer = Buffer.from(comprobante.contentBase64, 'base64');
-    const resumenServicios = detalle
-      .map((d) => `• ${d.servicioNombre} con ${d.personalNombre} — ${d.fecha} ${d.horaInicio}-${d.horaFin}`)
+
+    const NUMEROS = ['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟'];
+    const listaServicios = detalle
+      .map((d, i) => {
+        const numero = NUMEROS[i] || `${i + 1}.`;
+        return `${numero} <b>${d.servicioNombre}</b>\n   👩‍🎨 ${d.personalNombre}  🕐 ${d.horaInicio}–${d.horaFin}  💲${d.precio.toFixed(2)}`;
+      })
       .join('\n');
 
+    const fechaCita = detalle[0].fecha;
+    const saldoPendiente = montoTotal - montoAbono;
+
     const captionTelegram =
-      `<b>Nueva cita confirmada — Luxury Palace</b>\n` +
-      `Cliente: ${cliente.nombre} (${cliente.telefono})\n` +
-      `${resumenServicios}\n` +
-      `Total: $${montoTotal.toFixed(2)} | Abono recibido (20%): $${montoAbono.toFixed(2)}\n` +
-      `Reserva: ${reservaId}`;
+      `🌸 <b>NUEVA CITA CONFIRMADA</b> 🌸\n` +
+      `<b>Luxury Palace</b>\n` +
+      `━━━━━━━━━━━━━━━━━━\n\n` +
+      `👤 <b>${cliente.nombre}</b>\n` +
+      `📱 ${cliente.telefono}\n` +
+      `📧 ${cliente.email}\n\n` +
+      `📅 <b>${fechaCita}</b>\n\n` +
+      `${listaServicios}\n\n` +
+      `━━━━━━━━━━━━━━━━━━\n` +
+      `💰 Total: <b>$${montoTotal.toFixed(2)}</b>\n` +
+      `✅ Abono recibido (20%): <b>$${montoAbono.toFixed(2)}</b>\n` +
+      `💵 Saldo a cobrar en el local: <b>$${saldoPendiente.toFixed(2)}</b>\n\n` +
+      `🧾 Comprobante adjunto 👇\n` +
+      `🆔 Reserva: <code>${reservaId}</code>`;
 
     await enviarDocumentoBytes({
       filename: comprobante.filename || 'comprobante.jpg',
