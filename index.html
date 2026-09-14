@@ -722,6 +722,11 @@ async function renderPasoHorarios() {
         body: JSON.stringify({ fecha: estado.fecha, servicioId: item.servicioId, personalId: item.personalId, cadenaPrevia })
       });
       data = await res.json();
+      if (!res.ok) {
+        // El backend respondió con un error real (500/400) — no lo ocultamos
+        // como "no hay horarios", mostramos el motivo real para poder depurar.
+        data = { slots: [], bloqueado: true, motivo: `Error del servidor: ${data.error || res.status}` };
+      }
     } catch (e) {
       data = { slots: [], bloqueado: true, motivo: 'Error de conexión, intenta de nuevo.' };
     }
