@@ -27,6 +27,27 @@ function hhmmToMin(hhmm) {
   return h * 60 + m;
 }
 
+// Fecha y hora actual en Ecuador (America/Guayaquil) — para rechazar, también
+// aquí en el guardado final, un horario de HOY que ya pasó (por si el cliente
+// dejó la página abierta un rato antes de confirmar).
+function ahoraEnQuito() {
+  const fmt = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Guayaquil',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  });
+  const parts = fmt.formatToParts(new Date());
+  const get = (t) => parts.find((p) => p.type === t).value;
+  return {
+    fecha: `${get('year')}-${get('month')}-${get('day')}`,
+    minutos: parseInt(get('hour'), 10) * 60 + parseInt(get('minute'), 10),
+  };
+}
+
 exports.handler = async (event) => {
   try {
     const { cliente, segmentos, comprobante } = JSON.parse(event.body || '{}');
@@ -41,7 +62,8 @@ exports.handler = async (event) => {
       return resp(400, { error: 'Falta el comprobante de pago' });
     }
 
-    // --- Validación de la regla de las 18:00 y de servicios/personal válidos ---
+    // --- Validación de la regla de las 18:00, horarios ya pasados y servicios/personal válidos ---
+    const { fecha: hoyEC, minutos: ahoraMinEC } = ahoraEnQuito();
     for (const seg of segmentos) {
       const servicio = SERVICIOS.find((s) => s.id === seg.servicioId);
       if (!servicio) return resp(400, { error: `Servicio inválido: ${seg.servicioId}` });
@@ -50,6 +72,9 @@ exports.handler = async (event) => {
       }
       if (hhmmToMin(seg.horaInicio) > HORARIO.ultimoInicioMin) {
         return resp(409, { error: 'Ese servicio inicia después de las 18:00, no está permitido' });
+      }
+      if (seg.fecha === hoyEC && hhmmToMin(seg.horaInicio) < ahoraMinEC) {
+        return resp(409, { error: `El horario ${seg.horaInicio} ya pasó. Por favor elige otro horario.` });
       }
     }
     for (let i = 1; i < segmentos.length; i++) {
