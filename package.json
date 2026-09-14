@@ -2,8 +2,11 @@
   "name": "luxury-palace-reservas",
   "version": "1.0.0",
   "private": true,
-  "description": "Sistema de reservas de Luxury Palace (salón de belleza) — formulario + Netlify Functions + Google Sheets, sin dependencias npm en las funciones.",
+  "description": "Sistema de reservas de Luxury Palace (salón de belleza) — formulario + Netlify Functions + Google Sheets. Sin dependencias npm salvo nodemailer, usada solo para el envío de emails por Gmail SMTP.",
   "engines": {
     "node": ">=18"
+  },
+  "dependencies": {
+    "nodemailer": "^6.9.14"
   }
 }
