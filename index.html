@@ -17,152 +17,282 @@
     --blanco: #fffaf7;
     --error: #b3413a;
     --negro: #120d0a;
+    --glass: rgba(255,255,255,0.4);
+    --glass-fuerte: rgba(255,255,255,0.6);
+    --glass-borde: rgba(255,255,255,0.65);
+    --glass-sombra: 0 10px 30px rgba(154,116,73,0.16);
   }
   * { box-sizing: border-box; }
+  html, body { height: 100%; }
   body {
     margin: 0;
     font-family: 'Montserrat', sans-serif;
-    background: linear-gradient(180deg, var(--rosa-suave), var(--rosa));
     color: var(--marron);
     min-height: 100vh;
+    background: var(--rosa-suave);
   }
   .oculto { display: none !important; }
+
+  /* ---------------- FONDO FIJO DE TODA LA APP ---------------- */
+  .fondo-app {
+    position: fixed; inset: 0; z-index: -1;
+    background: url('assets/fondo-seda.jpg') center/cover no-repeat;
+  }
 
   /* ---------------- SPLASH ---------------- */
   #splash {
     position: fixed; inset: 0; z-index: 50;
-    background: radial-gradient(ellipse at center, #241a14 0%, var(--negro) 70%);
+    background: url('assets/fondo-seda.jpg') center/cover no-repeat;
     display: flex; align-items: center; justify-content: center;
     overflow: hidden; cursor: pointer;
   }
-  #splash .glow {
-    position: absolute; width: 140vw; height: 140vw; border-radius: 50%;
-    background: radial-gradient(circle, rgba(243,217,164,0.35) 0%, rgba(176,141,87,0.08) 40%, transparent 70%);
-    animation: pulso 3.2s ease-in-out infinite;
-  }
-  @keyframes pulso {
-    0%, 100% { transform: scale(0.9); opacity: 0.6; }
-    50% { transform: scale(1.12); opacity: 1; }
+  #splash .vineta {
+    position: absolute; inset: 0;
+    background: radial-gradient(ellipse at center, rgba(255,255,255,0) 45%, rgba(74,48,37,0.10) 100%);
+    pointer-events: none;
   }
   #splash .logo-wrap {
-    position: relative; width: min(78vw, 420px);
-    opacity: 0; transform: scale(0.75) translateY(10px);
+    position: relative; width: min(72vw, 380px);
+    opacity: 0; transform: scale(0.82) translateY(10px);
     animation: aparecer 1.4s cubic-bezier(.2,.9,.25,1) forwards 0.25s;
   }
   @keyframes aparecer {
     to { opacity: 1; transform: scale(1) translateY(0); }
   }
-  #splash img.logo { width: 100%; display: block; filter: drop-shadow(0 0 26px rgba(243,217,164,0.55)); border-radius: 6px; }
+  #splash img.logo {
+    width: 100%; display: block;
+    filter: drop-shadow(0 0 12px rgba(243,217,164,0.55)) drop-shadow(0 0 26px rgba(176,141,87,0.3));
+    animation: brillo-letras 3.4s ease-in-out infinite 1.5s;
+  }
+  @keyframes brillo-letras {
+    0%, 100% { filter: drop-shadow(0 0 10px rgba(243,217,164,0.45)) drop-shadow(0 0 22px rgba(176,141,87,0.22)); }
+    50% { filter: drop-shadow(0 0 20px rgba(243,217,164,0.9)) drop-shadow(0 0 42px rgba(176,141,87,0.5)); }
+  }
+  /* el brillo que recorre se recorta con el propio logo como máscara: solo
+     las letras/isotipo pueden brillar, el fondo de esta capa es transparente */
   #splash .sweep {
-    position: absolute; inset: 0; border-radius: 6px; overflow: hidden; pointer-events: none;
+    position: absolute; inset: 0; overflow: hidden; pointer-events: none;
+    -webkit-mask: url('assets/logo-transparente.png') center/contain no-repeat;
+    mask: url('assets/logo-transparente.png') center/contain no-repeat;
   }
   #splash .sweep::after {
-    content: ''; position: absolute; top: -20%; left: -60%; width: 40%; height: 140%;
-    background: linear-gradient(100deg, transparent, rgba(255,244,214,0.75), transparent);
+    content: ''; position: absolute; top: -30%; left: -70%; width: 45%; height: 180%;
+    background: linear-gradient(100deg, transparent, rgba(255,250,230,0.95), transparent);
     transform: skewX(-18deg);
-    animation: brillo 2.6s ease-in-out infinite 1.6s;
+    animation: brillo 2.8s ease-in-out infinite 1.7s;
   }
   @keyframes brillo {
-    0% { left: -60%; }
-    45%, 100% { left: 130%; }
+    0% { left: -70%; }
+    45%, 100% { left: 140%; }
   }
   #splash .toque {
-    position: absolute; bottom: 9%; left: 0; right: 0; text-align: center;
-    color: var(--dorado-brillo); font-size: 0.72rem; letter-spacing: 0.2em; text-transform: uppercase;
+    position: absolute; bottom: 8%; left: 0; right: 0; text-align: center;
+    color: var(--dorado); font-size: 0.72rem; letter-spacing: 0.22em; text-transform: uppercase;
+    text-shadow: 0 1px 8px rgba(255,255,255,0.9);
     opacity: 0; animation: fadein 1s ease forwards 2.4s;
   }
-  @keyframes fadein { to { opacity: 0.85; } }
+  @keyframes fadein { to { opacity: 0.9; } }
 
   /* ---------------- LAYOUT GENERAL ---------------- */
-  .wrap { max-width: 640px; margin: 0 auto; padding: 24px 16px 100px; }
-  header.top { text-align: center; margin-bottom: 22px; }
+  .wrap { max-width: 640px; margin: 0 auto; padding: 28px 16px 110px; }
+  header.top { text-align: center; margin-bottom: 26px; }
+  header.top .corona { color: var(--dorado); width: 22px; height: 22px; margin: 0 auto 6px; display: block; opacity: 0.85; }
   header.top h1 {
-    font-family: 'Cormorant Garamond', serif; font-size: 2rem; letter-spacing: 0.08em; color: var(--dorado); margin: 0 0 2px;
+    font-family: 'Cormorant Garamond', serif; font-size: 2.1rem; letter-spacing: 0.1em; color: var(--dorado); margin: 0;
+    text-shadow: 0 1px 14px rgba(255,255,255,0.7);
   }
-  header.top p { margin: 0; letter-spacing: 0.15em; font-size: 0.72rem; text-transform: uppercase; color: var(--marron); opacity: 0.65; }
+  header.top .divisor { width: 64px; height: 1px; margin: 10px auto; background: linear-gradient(90deg, transparent, var(--dorado), transparent); }
+  header.top p { margin: 0; letter-spacing: 0.18em; font-size: 0.7rem; text-transform: uppercase; color: var(--marron); opacity: 0.7; text-shadow: 0 1px 10px rgba(255,255,255,0.6); }
 
+  /* ---------------- TARJETAS DE VIDRIO ---------------- */
   .card {
-    background: var(--blanco); border: 1px solid var(--dorado-claro); border-radius: 14px;
-    padding: 22px; margin-bottom: 18px; box-shadow: 0 4px 18px rgba(176,141,87,0.12);
+    background: var(--glass);
+    backdrop-filter: blur(20px) saturate(150%);
+    -webkit-backdrop-filter: blur(20px) saturate(150%);
+    border: 1px solid var(--glass-borde);
+    border-radius: 20px;
+    padding: 26px 22px; margin-bottom: 20px;
+    box-shadow: var(--glass-sombra), inset 0 1px 0 rgba(255,255,255,0.55);
   }
-  .card h2 { font-family: 'Cormorant Garamond', serif; font-size: 1.4rem; color: var(--dorado); margin-top: 0; }
+  .card h2 {
+    font-family: 'Cormorant Garamond', serif; font-size: 1.4rem; color: var(--dorado);
+    margin: 0 0 16px; padding-bottom: 10px; position: relative;
+  }
+  .card h2::after {
+    content: ''; position: absolute; left: 0; bottom: 0; width: 36px; height: 2px;
+    background: linear-gradient(90deg, var(--dorado), transparent);
+  }
 
-  /* ---- botones de categoría (home) ---- */
-  .categorias-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  /* ---- botones de categoría (home) — estilo vidrio líquido ---- */
+  .categorias-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
   @media (max-width: 420px) { .categorias-grid { grid-template-columns: 1fr; } }
   .categoria-btn {
-    background: #fff; border: 1px solid var(--dorado-claro); border-radius: 14px; padding: 20px 14px;
-    text-align: center; cursor: pointer; transition: transform .15s, box-shadow .15s;
+    background: var(--glass);
+    backdrop-filter: blur(16px) saturate(160%);
+    -webkit-backdrop-filter: blur(16px) saturate(160%);
+    border: 1px solid var(--glass-borde);
+    border-radius: 18px; padding: 22px 14px 18px;
+    text-align: center; cursor: pointer;
+    transition: transform .18s ease, box-shadow .18s ease, background .18s ease;
+    box-shadow: 0 6px 20px rgba(154,116,73,0.12), inset 0 1px 0 rgba(255,255,255,0.5);
   }
-  .categoria-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(176,141,87,0.22); }
-  .categoria-btn.hecha { border-color: #7fae83; background: #f4faf4; }
-  .categoria-btn .icono { font-size: 1.8rem; display: block; margin-bottom: 8px; }
-  .categoria-btn .nombre { font-weight: 600; font-size: 0.92rem; }
-  .categoria-btn .check { font-size: 0.75rem; color: #4f8c55; margin-top: 4px; }
+  .categoria-btn:hover { transform: translateY(-3px); background: var(--glass-fuerte); box-shadow: 0 12px 28px rgba(154,116,73,0.24), inset 0 1px 0 rgba(255,255,255,0.6); }
+  .categoria-btn.hecha { border-color: rgba(127,174,131,0.55); background: rgba(228,245,229,0.5); }
+  .categoria-btn .icono-svg { width: 28px; height: 28px; margin: 0 auto 10px; color: var(--dorado); display: block; }
+  .categoria-btn .icono-svg svg { width: 100%; height: 100%; display: block; }
+  .categoria-btn .nombre { font-weight: 600; font-size: 0.88rem; letter-spacing: 0.01em; }
+  .categoria-btn .check { font-size: 0.68rem; color: #4f8c55; margin-top: 6px; letter-spacing: 0.05em; text-transform: uppercase; }
 
   /* ---- servicios dentro de una categoría ---- */
   .servicio-row {
     display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap;
-    padding: 10px 12px; border: 1px solid #eee0d5; border-radius: 10px; margin-bottom: 8px; background: #fff;
+    padding: 12px 14px; border: 1px solid rgba(226,207,184,0.6); border-radius: 12px; margin-bottom: 9px;
+    background: rgba(255,255,255,0.35);
   }
-  .servicio-row.activo { border-color: var(--dorado); background: #fdf6ec; }
+  .servicio-row.activo { border-color: var(--dorado); background: rgba(253,246,236,0.75); }
   .servicio-info { display: flex; align-items: center; gap: 10px; width: 100%; }
   .servicio-info input[type=checkbox] { width: 18px; height: 18px; accent-color: var(--dorado); flex-shrink: 0; }
   .servicio-nombre { font-weight: 500; flex: 1; }
   .servicio-precio { font-size: 0.85rem; opacity: 0.7; white-space: nowrap; }
   .personal-select { margin-top: 8px; width: 100%; }
   select, input[type=text], input[type=tel], input[type=email], input[type=date] {
-    width: 100%; padding: 10px 12px; border: 1px solid #e2cfb8; border-radius: 8px;
-    font-family: inherit; font-size: 0.95rem; background: #fff; color: var(--marron);
+    width: 100%; padding: 11px 12px; border: 1px solid rgba(226,207,184,0.8); border-radius: 10px;
+    font-family: inherit; font-size: 0.95rem; background: rgba(255,255,255,0.6); color: var(--marron);
   }
+
+  /* ---- botones tipo vidrio líquido ---- */
   .btn {
-    display: inline-block; padding: 13px 22px; border-radius: 999px; border: none;
-    background: var(--dorado); color: #fff; font-weight: 600; letter-spacing: 0.04em;
+    display: inline-block; padding: 14px 22px; border-radius: 999px; border: 1px solid rgba(255,255,255,0.55);
+    background: linear-gradient(135deg, rgba(217,189,140,0.75), rgba(176,141,87,0.65));
+    backdrop-filter: blur(14px) saturate(170%);
+    -webkit-backdrop-filter: blur(14px) saturate(170%);
+    color: #fff; font-weight: 600; letter-spacing: 0.05em;
     cursor: pointer; font-size: 0.95rem; width: 100%; text-align: center;
+    box-shadow: 0 8px 20px rgba(154,116,73,0.3), inset 0 1px 0 rgba(255,255,255,0.5);
+    text-shadow: 0 1px 3px rgba(74,48,37,0.35);
+    transition: transform .15s ease, box-shadow .15s ease;
   }
-  .btn:disabled { opacity: 0.45; cursor: not-allowed; }
-  .btn-secundario { background: transparent; color: var(--dorado); border: 1px solid var(--dorado); }
+  .btn:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 12px 26px rgba(154,116,73,0.36), inset 0 1px 0 rgba(255,255,255,0.55); }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn-secundario {
+    background: rgba(255,255,255,0.32); color: var(--dorado); border: 1px solid rgba(191,158,109,0.6); text-shadow: none;
+  }
   .btn-fila { display: flex; gap: 10px; margin-top: 14px; }
   .btn-fila .btn { width: auto; flex: 1; }
 
   /* ---- upsell ---- */
   .upsell-item {
-    display: flex; align-items: center; justify-content: space-between;
-    border: 1px solid var(--dorado-claro); border-radius: 12px; padding: 14px 16px; margin-bottom: 10px; background: #fdf6ec;
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    border: 1px solid var(--glass-borde); border-radius: 14px; padding: 14px 16px; margin-bottom: 10px;
+    background: var(--glass);
+    backdrop-filter: blur(14px) saturate(150%);
+    -webkit-backdrop-filter: blur(14px) saturate(150%);
   }
-  .upsell-item .txt .icono { font-size: 1.3rem; margin-right: 8px; }
-  .upsell-item button { background: var(--dorado); color: #fff; border: none; border-radius: 999px; padding: 8px 16px; font-size: 0.85rem; cursor: pointer; }
+  .upsell-item .txt { display: flex; align-items: center; gap: 10px; }
+  .upsell-item .icono-svg { width: 22px; height: 22px; color: var(--dorado); flex-shrink: 0; }
+  .upsell-item .icono-svg svg { width: 100%; height: 100%; display: block; }
+  .upsell-item button {
+    background: linear-gradient(135deg, rgba(217,189,140,0.85), rgba(176,141,87,0.8)); color: #fff; border: 1px solid rgba(255,255,255,0.5);
+    border-radius: 999px; padding: 9px 18px; font-size: 0.83rem; cursor: pointer; font-weight: 600;
+  }
 
   /* ---- carrito flotante ---- */
   #carrito-flotante {
     position: fixed; bottom: 0; left: 0; right: 0; z-index: 20;
-    background: var(--marron); color: #fff; padding: 12px 16px; display: flex; align-items: center; justify-content: space-between;
-    box-shadow: 0 -4px 14px rgba(0,0,0,0.18);
+    background: rgba(74,48,37,0.82);
+    backdrop-filter: blur(16px) saturate(150%);
+    -webkit-backdrop-filter: blur(16px) saturate(150%);
+    color: #fff; padding: 13px 16px; display: flex; align-items: center; justify-content: space-between;
+    box-shadow: 0 -6px 20px rgba(0,0,0,0.16);
   }
-  #carrito-flotante .info { font-size: 0.88rem; }
+  #carrito-flotante .info { font-size: 0.88rem; display: flex; align-items: center; gap: 8px; }
+  #carrito-flotante .icono-bolsa { width: 18px; height: 18px; color: var(--dorado-brillo); }
+  #carrito-flotante .icono-bolsa svg { width: 100%; height: 100%; display: block; }
   #carrito-flotante .total { color: var(--dorado-brillo); font-weight: 700; }
-  #carrito-flotante button { background: var(--dorado); color: #fff; border: none; border-radius: 999px; padding: 9px 16px; font-size: 0.85rem; cursor: pointer; }
+  #carrito-flotante button {
+    background: linear-gradient(135deg, rgba(217,189,140,0.9), rgba(176,141,87,0.9)); color: #fff; border: 1px solid rgba(255,255,255,0.4);
+    border-radius: 999px; padding: 10px 18px; font-size: 0.85rem; cursor: pointer; font-weight: 600;
+  }
 
-  .slots { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
-  .slot { padding: 8px 14px; border: 1px solid var(--dorado-claro); border-radius: 8px; cursor: pointer; font-size: 0.88rem; background: #fff; }
-  .slot.elegido { background: var(--dorado); color: #fff; border-color: var(--dorado); }
+  /* ---- paso horarios: bloques ordenados por servicio ---- */
+  .bloque-servicio {
+    padding: 16px 16px 18px; margin-bottom: 14px;
+    border: 1px solid rgba(226,207,184,0.55); border-radius: 16px;
+    background: rgba(255,255,255,0.3);
+  }
+  .bloque-servicio:last-child { margin-bottom: 0; }
+  .bloque-servicio-header { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+  .bloque-servicio .num {
+    width: 26px; height: 26px; border-radius: 50%; flex-shrink: 0;
+    background: linear-gradient(135deg, var(--dorado-claro), var(--dorado)); color: #fff;
+    font-size: 0.72rem; font-weight: 700; display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 2px 8px rgba(154,116,73,0.35);
+  }
+  .bloque-servicio .icono-svg { width: 22px; height: 22px; color: var(--dorado); flex-shrink: 0; }
+  .bloque-servicio .icono-svg svg { width: 100%; height: 100%; display: block; }
+  .bloque-servicio .titulo-serv { font-weight: 600; font-size: 0.94rem; }
+  .bloque-servicio .con-quien { font-size: 0.78rem; opacity: 0.65; margin-top: 1px; }
+  .cargando { opacity: 0.6; font-size: 0.85rem; animation: latido 1.4s ease-in-out infinite; }
+  @keyframes latido { 0%,100%{opacity:0.35;} 50%{opacity:0.75;} }
+
+  .slots { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 4px; }
+  .slot {
+    padding: 10px 16px; border-radius: 12px; cursor: pointer; font-size: 0.86rem;
+    background: var(--glass);
+    backdrop-filter: blur(12px) saturate(160%);
+    -webkit-backdrop-filter: blur(12px) saturate(160%);
+    border: 1px solid var(--glass-borde);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.5);
+    transition: background .15s ease, box-shadow .15s ease;
+  }
+  .slot:hover { background: var(--glass-fuerte); }
+  .slot.elegido {
+    background: linear-gradient(135deg, rgba(217,189,140,0.9), rgba(176,141,87,0.9));
+    color: #fff; border-color: rgba(255,255,255,0.6);
+    box-shadow: 0 6px 16px rgba(154,116,73,0.38), inset 0 1px 0 rgba(255,255,255,0.5);
+  }
+  .sin-horarios {
+    display: inline-block; font-size: 0.85rem; color: var(--error);
+    background: rgba(255,255,255,0.5); border: 1px solid rgba(179,65,58,0.25);
+    padding: 8px 12px; border-radius: 10px;
+  }
+
   .paso-titulo { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--dorado); margin-bottom: 4px; }
-  .resumen-linea { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px dashed #eee0d5; font-size: 0.92rem; }
+  .resumen-linea { display: flex; justify-content: space-between; padding: 7px 0; border-bottom: 1px dashed rgba(226,207,184,0.7); font-size: 0.92rem; }
   .resumen-total { display: flex; justify-content: space-between; font-weight: 700; padding-top: 10px; font-size: 1.05rem; }
-  .banco { background: #fdf6ec; border: 1px solid var(--dorado-claro); border-radius: 10px; padding: 14px; margin: 12px 0; font-size: 0.9rem; }
-  .aviso { font-size: 0.85rem; color: var(--error); margin-top: 6px; }
-  label { display: block; font-size: 0.85rem; margin: 10px 0 4px; }
-  footer.pie { text-align: center; font-size: 0.75rem; opacity: 0.55; margin-top: 30px; }
-  .volver { font-size: 0.8rem; color: var(--dorado); cursor: pointer; margin-bottom: 10px; display: inline-block; }
+  .banco {
+    background: rgba(253,246,236,0.6); border: 1px solid var(--glass-borde); border-radius: 14px; padding: 16px; margin: 14px 0; font-size: 0.9rem;
+  }
+  .aviso { font-size: 0.85rem; color: var(--error); margin-top: 8px; }
+  label { display: block; font-size: 0.85rem; margin: 12px 0 5px; }
+  footer.pie { text-align: center; font-size: 0.75rem; opacity: 0.6; margin-top: 30px; text-shadow: 0 1px 8px rgba(255,255,255,0.6); }
+  .volver { font-size: 0.8rem; color: var(--dorado); cursor: pointer; margin-bottom: 12px; display: inline-block; }
+
+  #paso-exito h2::after { left: 50%; transform: translateX(-50%); }
+  .exito-icono { width: 48px; height: 48px; color: var(--dorado); margin: 0 auto 14px; display: block; }
+  .exito-icono svg { width: 100%; height: 100%; display: block; }
+  #paso-exito { text-align: center; }
+  #mensaje-exito { line-height: 1.55; }
+  #mensaje-exito .nota-spam { display: block; margin-top: 14px; font-size: 0.82rem; opacity: 0.75; }
+
+  /* alternativa sin soporte de backdrop-filter (navegadores muy antiguos) */
+  @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    .card, .categoria-btn, .btn, .slot, .bloque-servicio, .upsell-item, #carrito-flotante {
+      background: rgba(255,255,255,0.94) !important;
+    }
+    #carrito-flotante { background: rgba(74,48,37,0.94) !important; }
+  }
 </style>
 </head>
 <body>
 
+<div class="fondo-app"></div>
+
 <!-- ============== SPLASH ============== -->
 <div id="splash">
-  <div class="glow"></div>
+  <div class="vineta"></div>
   <div class="logo-wrap">
-    <img class="logo" src="assets/logo-crop.png" alt="Luxury Palace" />
+    <img class="logo" src="assets/logo-transparente.png" alt="Luxury Palace" />
     <div class="sweep"></div>
   </div>
   <div class="toque">Toca para entrar</div>
@@ -170,7 +300,9 @@
 
 <div class="wrap">
   <header class="top">
+    <span class="corona" id="corona-header"></span>
     <h1>Luxury Palace</h1>
+    <div class="divisor"></div>
     <p>Salón de belleza · Reserva tu cita</p>
   </header>
 
@@ -245,7 +377,8 @@
 
   <!-- ============== ÉXITO ============== -->
   <div class="card oculto" id="paso-exito">
-    <h2>¡Cita confirmada!</h2>
+    <span class="exito-icono" id="icono-exito"></span>
+    <h2 style="text-align:center;">¡Cita confirmada!</h2>
     <p id="mensaje-exito"></p>
   </div>
 
@@ -253,23 +386,45 @@
 </div>
 
 <div id="carrito-flotante" class="oculto">
-  <div class="info">🛍️ <span id="carrito-cantidad">0</span> servicio(s) · <span class="total" id="carrito-total">$0.00</span></div>
+  <div class="info">
+    <span class="icono-bolsa" id="icono-bolsa-carrito"></span>
+    <span><span id="carrito-cantidad">0</span> servicio(s) · <span class="total" id="carrito-total">$0.00</span></span>
+  </div>
   <button id="btn-ver-carrito-agenda">Ir a agendar</button>
 </div>
 
 <script>
+// ---------------------------------------------------------------------------
+// Iconos minimalistas en línea (trazo dorado, sin emojis)
+// ---------------------------------------------------------------------------
+const ICONOS = {
+  unas: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 2h6l-1 3H10L9 2z"/><path d="M9.5 5h5l1 3.2c.3 1 .5 2 .5 3.3v6a3.5 3.5 0 0 1-7 0v-6c0-1.3.2-2.3.5-3.3L9.5 5z"/><path d="M8.8 10.5h6.4"/></svg>',
+  pestanas_cejas: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 12S6 6.5 12 6.5 21.5 12 21.5 12 18 17.5 12 17.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="2.6"/><path d="M6 6.5l-1-2M9.5 5.3l-.6-2M14.5 5.3l.6-2M18 6.5l1-2"/></svg>',
+  cabello_cortes: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="2.2"/><circle cx="6" cy="18" r="2.2"/><path d="M20 5 8.5 13"/><path d="M20 19 8.5 11"/><path d="M7.6 12l1-1"/></svg>',
+  cabello_tratamientos: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5s5.2 6 5.2 9.8a5.2 5.2 0 1 1-10.4 0C6.8 9.5 12 3.5 12 3.5z"/><path d="M17.5 4.5v2M16.5 5.5h2"/></svg>',
+  corporal: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 4C10 4 4 10 4 18c8 0 14-6 14-14z"/><path d="M6.5 17.5 17 7"/></svg>',
+  faciales: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 3.8v2.2M12 18v2.2M4.8 12H7M17 12h2.2M6.5 6.5l1.5 1.5M16 16l1.5 1.5M6.5 17.5 8 16M16 8l1.5-1.5"/></svg>',
+};
+const ICONO_BOLSA = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8h12l-1 12H7L6 8z"/><path d="M9 8V6.5a3 3 0 0 1 6 0V8"/></svg>';
+const ICONO_CORONA = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round" stroke-linecap="round"><path d="M3 8l3 3 6-6 6 6 3-3-2 10H5L3 8z"/><circle cx="3" cy="7" r="1"/><circle cx="12" cy="4" r="1"/><circle cx="21" cy="7" r="1"/></svg>';
+const ICONO_EXITO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9.5"/><path d="M8 12.5l2.5 2.5L16 9.5"/></svg>';
+
+document.getElementById('corona-header').innerHTML = ICONO_CORONA;
+document.getElementById('icono-bolsa-carrito').innerHTML = ICONO_BOLSA;
+document.getElementById('icono-exito').innerHTML = ICONO_EXITO;
+
 // ---------------------------------------------------------------------------
 // Catálogo (debe reflejar config/servicios.js del backend — se mantiene una
 // copia liviana aquí para pintar la UI sin depender del servidor).
 // ---------------------------------------------------------------------------
 const PERSONAL_NOMBRES = { ana: 'Ana', ceci: 'Ceci', leana: 'Leana' };
 const CATEGORIAS = [
-  { id: 'unas', nombre: 'Uñas', icono: '💅' },
-  { id: 'pestanas_cejas', nombre: 'Pestañas y cejas', icono: '👁️' },
-  { id: 'cabello_cortes', nombre: 'Cabello — cortes', icono: '✂️' },
-  { id: 'cabello_tratamientos', nombre: 'Cabello — tratamientos', icono: '✨' },
-  { id: 'corporal', nombre: 'Depilación corporal', icono: '🌿' },
-  { id: 'faciales', nombre: 'Faciales', icono: '🧖‍♀️' },
+  { id: 'unas', nombre: 'Uñas' },
+  { id: 'pestanas_cejas', nombre: 'Pestañas y cejas' },
+  { id: 'cabello_cortes', nombre: 'Cabello — cortes' },
+  { id: 'cabello_tratamientos', nombre: 'Cabello — tratamientos' },
+  { id: 'corporal', nombre: 'Depilación corporal' },
+  { id: 'faciales', nombre: 'Faciales' },
 ];
 const SERVICIOS = [
   { id: 'manicura_normal', nombre: 'Manicura esmalte normal', categoria: 'unas', precio: 7, personal: ['ana','ceci'] },
@@ -324,6 +479,7 @@ const estado = {
 function nombreServicio(id) { return (SERVICIOS.find(s => s.id === id) || {}).nombre || id; }
 function precioServicio(id) { return (SERVICIOS.find(s => s.id === id) || {}).precio || 0; }
 function nombrePersonal(p) { return PERSONAL_NOMBRES[p] || p; }
+function categoriaDeServicio(id) { const s = SERVICIOS.find(x => x.id === id); return s ? s.categoria : null; }
 
 // ---------------------------------------------------------------------------
 // SPLASH
@@ -343,7 +499,7 @@ function renderGridCategorias() {
     const hecha = estado.categoriasVisitadas.has(cat.id);
     const div = document.createElement('div');
     div.className = 'categoria-btn' + (hecha ? ' hecha' : '');
-    div.innerHTML = `<span class="icono">${cat.icono}</span><span class="nombre">${cat.nombre}</span>` +
+    div.innerHTML = `<span class="icono-svg">${ICONOS[cat.id]}</span><span class="nombre">${cat.nombre}</span>` +
       (hecha ? '<div class="check">✓ agregado</div>' : '');
     div.addEventListener('click', () => abrirCategoria(cat.id));
     gridCategorias.appendChild(div);
@@ -432,7 +588,7 @@ function mostrarUpsell(catRecienVisitada) {
   pendientes.forEach(cat => {
     const div = document.createElement('div');
     div.className = 'upsell-item';
-    div.innerHTML = `<div class="txt"><span class="icono">${cat.icono}</span>${cat.nombre}</div>
+    div.innerHTML = `<div class="txt"><span class="icono-svg">${ICONOS[cat.id]}</span>${cat.nombre}</div>
       <button>Agregar</button>`;
     div.querySelector('button').addEventListener('click', () => abrirCategoria(cat.id));
     cont.appendChild(div);
@@ -492,12 +648,19 @@ async function renderPasoHorarios() {
 
   for (let i = 0; i < estado.carrito.length; i++) {
     const item = estado.carrito[i];
+    const catId = categoriaDeServicio(item.servicioId);
     const bloque = document.createElement('div');
-    bloque.style.marginBottom = '18px';
+    bloque.className = 'bloque-servicio';
     bloque.innerHTML = `
-      <div class="paso-titulo">Servicio ${i + 1} de ${estado.carrito.length}</div>
-      <div><b>${nombreServicio(item.servicioId)}</b> con ${nombrePersonal(item.personalId)}</div>
-      <div class="slots" id="slots-${i}"><span style="opacity:0.6;font-size:0.85rem;">Buscando horarios…</span></div>
+      <div class="bloque-servicio-header">
+        <span class="num">${i + 1}</span>
+        <span class="icono-svg">${ICONOS[catId] || ''}</span>
+        <div>
+          <div class="titulo-serv">${nombreServicio(item.servicioId)}</div>
+          <div class="con-quien">con ${nombrePersonal(item.personalId)}</div>
+        </div>
+      </div>
+      <div class="slots" id="slots-${i}"><span class="cargando">Buscando disponibilidad…</span></div>
     `;
     cont.appendChild(bloque);
 
@@ -517,7 +680,7 @@ async function renderPasoHorarios() {
     const slotsDiv = document.getElementById(`slots-${i}`);
     slotsDiv.innerHTML = '';
     if (data.bloqueado || !data.slots || data.slots.length === 0) {
-      slotsDiv.innerHTML = `<span style="color:#b3413a;font-size:0.85rem;">${data.motivo || 'No hay horarios disponibles ese día.'}</span>`;
+      slotsDiv.innerHTML = `<span class="sin-horarios">${data.motivo || 'No hay horarios disponibles ese día.'}</span>`;
       break;
     }
 
@@ -622,8 +785,9 @@ document.getElementById('btn-confirmar').addEventListener('click', async () => {
 
     document.getElementById('carrito-flotante').classList.add('oculto');
     mostrarPantalla('paso-exito');
-    document.getElementById('mensaje-exito').textContent =
-      `Te enviamos la confirmación a ${email}. Total $${data.montoTotal.toFixed(2)}, abono $${data.montoAbono.toFixed(2)}.`;
+    document.getElementById('mensaje-exito').innerHTML =
+      `Te enviamos la confirmación a <b>${email}</b>. Total $${data.montoTotal.toFixed(2)}, abono $${data.montoAbono.toFixed(2)}.` +
+      `<span class="nota-spam">Si no la ves en unos minutos, revisa también tu carpeta de spam o correo no deseado.</span>`;
   } catch (e) {
     aviso.textContent = e.message;
     aviso.classList.remove('oculto');
