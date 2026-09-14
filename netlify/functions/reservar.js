@@ -164,7 +164,9 @@ exports.handler = async (event) => {
         <p>Si necesitas modificar tu cita, hazlo con un mínimo de 2 horas de anticipación
            para no perder el abono.</p>
         <p>Datos de la transferencia (para futuras citas):<br/>
-           ${PAGO.titular} — ${PAGO.banco}, ${PAGO.tipoCuenta}</p>
+           ${PAGO.titular} — C.I. ${PAGO.cedula}<br/>
+           ${PAGO.banco}, ${PAGO.tipoCuenta}<br/>
+           N.º de cuenta: ${PAGO.numeroCuenta}</p>
         <p>Adjuntamos tu comprobante de pago como respaldo.</p>
       </div>`;
 
