@@ -263,6 +263,19 @@
   .banco {
     background: rgba(253,246,236,0.6); border: 1px solid var(--glass-borde); border-radius: 14px; padding: 16px; margin: 14px 0; font-size: 0.9rem;
   }
+  .banco-cuenta-fila { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
+  .btn-copiar {
+    display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0;
+    padding: 8px 14px; border-radius: 999px; border: 1px solid var(--glass-borde);
+    background: var(--glass);
+    backdrop-filter: blur(10px) saturate(150%);
+    -webkit-backdrop-filter: blur(10px) saturate(150%);
+    color: var(--dorado); font-size: 0.78rem; font-weight: 600; cursor: pointer; white-space: nowrap;
+    transition: background .15s ease, color .15s ease;
+  }
+  .btn-copiar:hover { background: var(--glass-fuerte); }
+  .btn-copiar svg { width: 14px; height: 14px; display: block; flex-shrink: 0; }
+  .btn-copiar.copiado { background: linear-gradient(135deg, rgba(127,174,131,0.85), rgba(100,150,105,0.85)); color: #fff; border-color: rgba(255,255,255,0.5); }
   .aviso { font-size: 0.85rem; color: var(--error); margin-top: 8px; }
   label { display: block; font-size: 0.85rem; margin: 12px 0 5px; }
   footer.pie { text-align: center; font-size: 0.75rem; opacity: 0.6; margin-top: 30px; text-shadow: 0 1px 8px rgba(255,255,255,0.6); }
@@ -363,9 +376,15 @@
 
     <div class="banco">
       <b>Transferencia del 20% para confirmar</b><br/>
-      Araujo Villarreal Ana Olga<br/>
-      Banco Pichincha — Cuenta de ahorros<br/>
-      <span id="banco-cuenta">Nro. de cuenta: (configurar)</span>
+      Araujo Villarreal Ana Olga · C.I. 1762047627<br/>
+      Banco Pichincha — Cuenta de ahorros
+      <div class="banco-cuenta-fila">
+        <span id="banco-cuenta">N.º de cuenta: <b>2212057696</b></span>
+        <button type="button" id="btn-copiar-cuenta" class="btn-copiar">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
+          <span id="texto-copiar-cuenta">Copiar número</span>
+        </button>
+      </div>
     </div>
 
     <label for="input-comprobante">Comprobante de la transferencia (foto o PDF)</label>
@@ -412,6 +431,36 @@ const ICONO_EXITO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" 
 document.getElementById('corona-header').innerHTML = ICONO_CORONA;
 document.getElementById('icono-bolsa-carrito').innerHTML = ICONO_BOLSA;
 document.getElementById('icono-exito').innerHTML = ICONO_EXITO;
+
+// ---------------------------------------------------------------------------
+// COPIAR NÚMERO DE CUENTA
+// ---------------------------------------------------------------------------
+const NUMERO_CUENTA = '2212057696';
+document.getElementById('btn-copiar-cuenta').addEventListener('click', async () => {
+  const btn = document.getElementById('btn-copiar-cuenta');
+  const texto = document.getElementById('texto-copiar-cuenta');
+  const original = texto.textContent;
+  try {
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(NUMERO_CUENTA);
+    } else {
+      const tmp = document.createElement('textarea');
+      tmp.value = NUMERO_CUENTA;
+      tmp.style.position = 'fixed';
+      tmp.style.opacity = '0';
+      document.body.appendChild(tmp);
+      tmp.focus();
+      tmp.select();
+      document.execCommand('copy');
+      document.body.removeChild(tmp);
+    }
+    texto.textContent = '¡Copiado!';
+    btn.classList.add('copiado');
+  } catch (e) {
+    texto.textContent = 'No se pudo copiar';
+  }
+  setTimeout(() => { texto.textContent = original; btn.classList.remove('copiado'); }, 1800);
+});
 
 // ---------------------------------------------------------------------------
 // Catálogo (debe reflejar config/servicios.js del backend — se mantiene una
