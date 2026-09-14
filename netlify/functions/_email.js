@@ -1,55 +1,39 @@
-// Envío de emails vía Resend API (REST directo, sin SDK).
-// Variables de entorno requeridas:
-//   RESEND_API_KEY
-//   RESEND_FROM  -> ej. "Luxury Palace <reservas@luxurypalace.com>" (debe ser
-//                   un dominio verificado en Resend)
+const nodemailer = require('nodemailer');
 
-const https = require('https');
-
-function postJson(path, payload, apiKey) {
-  const body = JSON.stringify(payload);
-  return new Promise((resolve, reject) => {
-    const req = https.request(
-      {
-        hostname: 'api.resend.com',
-        path,
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
-          'Content-Length': Buffer.byteLength(body),
-        },
-      },
-      (res) => {
-        let data = '';
-        res.on('data', (c) => (data += c));
-        res.on('end', () => {
-          const parsed = data ? JSON.parse(data) : {};
-          if (res.statusCode >= 200 && res.statusCode < 300) resolve(parsed);
-          else reject(new Error(`Resend ${res.statusCode}: ${JSON.stringify(parsed)}`));
-        });
-      }
-    );
-    req.on('error', reject);
-    req.write(body);
-    req.end();
+let cachedTransporter = null;
+function getTransporter() {
+  if (cachedTransporter) return cachedTransporter;
+  cachedTransporter = nodemailer.createTransport({
+    host: 'smtp.gmail.com',
+    port: 465,
+    secure: true,
+    auth: {
+      user: process.env.GMAIL_USER,
+      pass: process.env.GMAIL_APP_PASSWORD,
+    },
   });
+  return cachedTransporter;
 }
 
-// `attachmentBase64` es opcional: { filename, content } con content en base64.
 async function enviarEmail({ to, subject, html, attachmentBase64 }) {
-  const payload = {
-    from: process.env.RESEND_FROM,
-    to: [to],
+  if (!process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD) {
+    throw new Error('Faltan GMAIL_USER / GMAIL_APP_PASSWORD en el entorno');
+  }
+  const mailOptions = {
+    from: `"Luxury Palace" <${process.env.GMAIL_USER}>`,
+    to,
     subject,
     html,
   };
   if (attachmentBase64) {
-    payload.attachments = [
-      { filename: attachmentBase64.filename, content: attachmentBase64.content },
+    mailOptions.attachments = [
+      {
+        filename: attachmentBase64.filename,
+        content: Buffer.from(attachmentBase64.content, 'base64'),
+      },
     ];
   }
-  return postJson('/emails', payload, process.env.RESEND_API_KEY);
+  return getTransporter().sendMail(mailOptions);
 }
 
 module.exports = { enviarEmail };
