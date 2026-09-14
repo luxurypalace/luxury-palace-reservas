@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Luxury Palace — Agenda del día</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --dorado: #b08d57;
+    --dorado-claro: #d9bd8c;
+    --dorado-brillo: #f3d9a4;
+    --rosa: #f7e9e3;
+    --rosa-suave: #fbf3ef;
+    --marron: #4a3025;
+    --blanco: #fffaf7;
+    --verde: #4f8c55;
+    --glass: rgba(255,255,255,0.4);
+    --glass-fuerte: rgba(255,255,255,0.62);
+    --glass-borde: rgba(255,255,255,0.65);
+    --glass-sombra: 0 10px 30px rgba(154,116,73,0.16);
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    font-family: 'Montserrat', sans-serif;
+    color: var(--marron);
+    min-height: 100vh;
+  }
+  .fondo-app {
+    position: fixed; inset: 0; z-index: -1;
+    background: url('assets/fondo-seda.jpg') center/cover no-repeat;
+  }
+
+  .wrap { max-width: 1400px; margin: 0 auto; padding: 26px 22px 40px; }
+
+  header.top { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 14px; margin-bottom: 22px; }
+  header.top .marca { display: flex; align-items: center; gap: 12px; }
+  header.top .corona { width: 26px; height: 26px; color: var(--dorado); flex-shrink: 0; }
+  header.top .corona svg { width: 100%; height: 100%; display: block; }
+  header.top h1 {
+    font-family: 'Cormorant Garamond', serif; font-size: 2rem; letter-spacing: 0.06em; color: var(--dorado); margin: 0;
+    text-shadow: 0 1px 14px rgba(255,255,255,0.7);
+  }
+  header.top .subt { font-size: 0.72rem; letter-spacing: 0.16em; text-transform: uppercase; color: var(--marron); opacity: 0.65; margin-top: 2px; }
+
+  .reloj-caja {
+    background: var(--glass);
+    backdrop-filter: blur(18px) saturate(150%);
+    -webkit-backdrop-filter: blur(18px) saturate(150%);
+    border: 1px solid var(--glass-borde);
+    border-radius: 16px;
+    padding: 10px 22px;
+    text-align: center;
+    box-shadow: var(--glass-sombra), inset 0 1px 0 rgba(255,255,255,0.55);
+  }
+  .reloj-caja .hora { font-family: 'Cormorant Garamond', serif; font-size: 1.7rem; font-weight: 600; color: var(--marron); line-height: 1.1; }
+  .reloj-caja .fecha { font-size: 0.68rem; letter-spacing: 0.1em; color: var(--dorado); opacity: 0.9; }
+
+  .columnas {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 18px;
+  }
+
+  .col-personal {
+    background: var(--glass);
+    backdrop-filter: blur(20px) saturate(150%);
+    -webkit-backdrop-filter: blur(20px) saturate(150%);
+    border: 1px solid var(--glass-borde);
+    border-radius: 20px;
+    padding: 18px 16px 20px;
+    box-shadow: var(--glass-sombra), inset 0 1px 0 rgba(255,255,255,0.55);
+    min-height: 220px;
+  }
+  .col-personal h2 {
+    font-family: 'Cormorant Garamond', serif; font-size: 1.5rem; color: var(--dorado);
+    margin: 0 0 4px; padding-bottom: 10px; position: relative; display: flex; align-items: center; justify-content: space-between;
+  }
+  .col-personal h2::after {
+    content: ''; position: absolute; left: 0; bottom: 0; width: 36px; height: 2px;
+    background: linear-gradient(90deg, var(--dorado), transparent);
+  }
+  .col-personal .contador {
+    font-family: 'Montserrat', sans-serif; font-size: 0.7rem; font-weight: 600; letter-spacing: 0.04em;
+    color: var(--dorado); background: rgba(255,255,255,0.5); border: 1px solid var(--glass-borde);
+    border-radius: 999px; padding: 3px 10px;
+  }
+
+  .cita {
+    display: flex; gap: 12px; align-items: flex-start;
+    border: 1px solid rgba(226,207,184,0.6); border-radius: 14px;
+    padding: 12px 13px; margin-bottom: 10px;
+    background: rgba(255,255,255,0.4);
+    transition: opacity .2s ease;
+  }
+  .cita .hora {
+    flex-shrink: 0; text-align: center; min-width: 58px;
+    font-family: 'Cormorant Garamond', serif; font-weight: 700; font-size: 1.05rem; color: var(--marron);
+    line-height: 1.25;
+  }
+  .cita .hora small { display: block; font-family: 'Montserrat', sans-serif; font-weight: 500; font-size: 0.62rem; opacity: 0.6; letter-spacing: 0.03em; }
+  .cita .detalle { flex: 1; min-width: 0; }
+  .cita .cliente { font-weight: 700; font-size: 0.96rem; margin-bottom: 2px; overflow-wrap: break-word; }
+  .cita .servicio { font-size: 0.84rem; opacity: 0.85; }
+  .cita .telefono { font-size: 0.76rem; opacity: 0.6; margin-top: 3px; }
+
+  .cita.en-curso {
+    border-color: var(--verde); background: rgba(228,245,229,0.7);
+    box-shadow: 0 4px 16px rgba(79,140,85,0.18);
+  }
+  .cita.en-curso .hora { color: var(--verde); }
+  .cita .badge-ahora {
+    display: inline-block; margin-left: 6px; font-size: 0.62rem; font-weight: 700; letter-spacing: 0.06em;
+    color: #fff; background: var(--verde); border-radius: 999px; padding: 2px 8px; vertical-align: middle;
+  }
+
+  .cita.pasada { opacity: 0.42; }
+  .cita.pasada .hora { text-decoration: line-through; text-decoration-color: rgba(74,48,37,0.4); }
+
+  .vacio {
+    text-align: center; padding: 26px 10px; font-size: 0.86rem; color: var(--marron); opacity: 0.55;
+    font-style: italic;
+  }
+
+  footer.pie {
+    text-align: center; margin-top: 24px; font-size: 0.72rem; letter-spacing: 0.05em; color: var(--marron); opacity: 0.55;
+  }
+  footer.pie .punto-vivo {
+    display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--verde);
+    margin-right: 5px; animation: latido 1.6s ease-in-out infinite;
+  }
+  @keyframes latido { 0%,100% { opacity: 1; } 50% { opacity: 0.35; } }
+
+  .error-caja {
+    max-width: 640px; margin: 40px auto; text-align: center;
+    background: rgba(255,240,235,0.75); border: 1px solid rgba(179,65,58,0.4); border-radius: 16px; padding: 22px;
+    color: #7a2b25;
+  }
+</style>
+</head>
+<body>
+
+<div class="fondo-app"></div>
+
+<div class="wrap">
+  <header class="top">
+    <div class="marca">
+      <div class="corona">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17h18l-1.6-8.2-4.4 3.4L12 5l-3 7.2-4.4-3.4L3 17Z"/><path d="M5.5 20h13"/></svg>
+      </div>
+      <div>
+        <h1>Luxury Palace</h1>
+        <div class="subt">Agenda del día</div>
+      </div>
+    </div>
+    <div class="reloj-caja">
+      <div class="hora" id="reloj-hora">--:--</div>
+      <div class="fecha" id="reloj-fecha">—</div>
+    </div>
+  </header>
+
+  <div id="contenedor-columnas" class="columnas">
+    <div class="vacio">Cargando agenda…</div>
+  </div>
+
+  <footer class="pie">
+    <span class="punto-vivo"></span>Actualización automática — última: <span id="ultima-actualizacion">—</span>
+  </footer>
+</div>
+
+<script>
+  const NOMBRES_MES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+
+  function actualizarReloj() {
+    const ahora = new Date();
+    const horaTexto = new Intl.DateTimeFormat('es-EC', {
+      timeZone: 'America/Guayaquil', hour: '2-digit', minute: '2-digit', hour12: false,
+    }).format(ahora);
+    document.getElementById('reloj-hora').textContent = horaTexto;
+
+    const p = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'America/Guayaquil', year: 'numeric', month: '2-digit', day: '2-digit',
+    }).formatToParts(ahora);
+    const get = (t) => p.find(x => x.type === t) && p.find(x => x.type === t).value;
+    const mesNum = parseInt(get('month'), 10) - 1;
+    const diaNum = get('day');
+    document.getElementById('reloj-fecha').textContent = `${diaNum} de ${NOMBRES_MES[mesNum]}`;
+  }
+
+  function renderAgenda(data) {
+    const cont = document.getElementById('contenedor-columnas');
+    cont.innerHTML = '';
+
+    if (!data.personal || data.personal.length === 0) {
+      cont.innerHTML = '<div class="vacio">No hay personal configurado.</div>';
+      return;
+    }
+
+    data.personal.forEach((persona) => {
+      const col = document.createElement('div');
+      col.className = 'col-personal';
+
+      const h2 = document.createElement('h2');
+      h2.innerHTML = `<span>${persona.nombre}</span><span class="contador">${persona.citas.length}</span>`;
+      col.appendChild(h2);
+
+      if (persona.citas.length === 0) {
+        const vacio = document.createElement('div');
+        vacio.className = 'vacio';
+        vacio.textContent = 'Sin citas hoy';
+        col.appendChild(vacio);
+      } else {
+        persona.citas.forEach((c) => {
+          const div = document.createElement('div');
+          div.className = 'cita' + (c.enCurso ? ' en-curso' : '') + (c.pasada ? ' pasada' : '');
+          div.innerHTML = `
+            <div class="hora">${c.horaInicio}<small>${c.horaFin}</small></div>
+            <div class="detalle">
+              <div class="cliente">${escapeHtml(c.clienteNombre)}${c.enCurso ? '<span class="badge-ahora">AHORA</span>' : ''}</div>
+              <div class="servicio">${escapeHtml(c.servicioNombre)}</div>
+              <div class="telefono">${escapeHtml(c.clienteTelefono || '')}</div>
+            </div>`;
+          col.appendChild(div);
+        });
+      }
+
+      cont.appendChild(col);
+    });
+  }
+
+  function escapeHtml(s) {
+    return String(s || '').replace(/[&<>"']/g, (m) => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+    }[m]));
+  }
+
+  async function cargarAgenda() {
+    try {
+      const r = await fetch('/.netlify/functions/agenda', { cache: 'no-store' });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      const data = await r.json();
+      renderAgenda(data);
+      const ahora = new Intl.DateTimeFormat('es-EC', { timeZone: 'America/Guayaquil', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }).format(new Date());
+      document.getElementById('ultima-actualizacion').textContent = ahora;
+    } catch (err) {
+      document.getElementById('contenedor-columnas').innerHTML =
+        `<div class="error-caja">No se pudo cargar la agenda (${escapeHtml(err.message)}). Reintentando…</div>`;
+    }
+  }
+
+  actualizarReloj();
+  cargarAgenda();
+
+  setInterval(actualizarReloj, 1000);
+  setInterval(cargarAgenda, 30000); // refresco de datos cada 30s
+
+  // Red de seguridad para uso tipo kiosco: recarga completa cada 30 min,
+  // por si la pestaña lleva horas abierta y algo se queda "colgado" en memoria.
+  setInterval(() => { window.location.reload(); }, 30 * 60 * 1000);
+</script>
+
+</body>
+</html>
