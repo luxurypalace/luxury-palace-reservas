@@ -156,7 +156,7 @@ exports.handler = async (event) => {
       <div style="font-family:Georgia,serif;color:#4a3025;">
         <h2 style="color:#b08d57;">Luxury Palace — Confirmación de cita</h2>
         <p>Hola ${cliente.nombre}, tu cita quedó <b>confirmada</b>:</p>
-        <p>${resumenServicios.replace(/\n/g, '<br/>')}</p>
+        <p>${listaServicios.replace(/<b>|<\/b>/g, '').replace(/\n/g, '<br/>')}</p>
         <p><b>Total:</b> $${montoTotal.toFixed(2)}<br/>
            <b>Abono pagado (20%):</b> $${montoAbono.toFixed(2)}<br/>
            <b>Saldo a pagar en el local:</b> $${(montoTotal - montoAbono).toFixed(2)}</p>
