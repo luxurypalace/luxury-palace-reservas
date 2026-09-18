@@ -116,9 +116,12 @@ exports.handler = async (event) => {
       return { ...seg, servicioNombre: servicio.nombre, personalNombre: await nombrePersonal(seg.personalId), precio: servicio.precio };
     }));
     const montoTotal = detalle.reduce((acc, d) => acc + d.precio, 0);
-    // Si el cliente eligió pagar completo, lo transferido es el 100% (no queda
-    // saldo por cobrar en el local). Si eligió abono, se mantiene el 20% de siempre.
-    const montoAbono = tipoPago === 'completo'
+    // Lo mínimo que el cliente se comprometió a transferir según lo que eligió:
+    // 100% si pagó completo, 20% si fue abono. Esto es un PISO, no un techo —
+    // si transfiere más pero sin pasarse del total de la cuenta, es solo un
+    // abono más grande (más saldo cubierto), no una propina. Solo lo que pasa
+    // del total de la cuenta cuenta como propina.
+    const montoEsperado = tipoPago === 'completo'
       ? montoTotal
       : Math.round(montoTotal * PAGO.porcentajeAbono * 100) / 100;
     const etiquetaTipoPago = tipoPago === 'completo' ? 'Pago completo' : 'Abono 20%';
@@ -134,6 +137,7 @@ exports.handler = async (event) => {
     let montoDetectado = null;
     let notaPago = '';
     let propina = 0;
+    let montoAbono = montoEsperado; // lo que efectivamente queda registrado como pagado
     if (lectura.confianza === 'baja') {
       // El modelo SÍ pudo intentar leer la imagen y no logró un monto claro
       // — se pide una foto mejor en vez de aceptar un comprobante dudoso.
@@ -143,17 +147,26 @@ exports.handler = async (event) => {
     }
     if (lectura.monto !== null) {
       montoDetectado = lectura.monto;
-      const diferencia = Math.round((montoDetectado - montoAbono) * 100) / 100;
-      if (diferencia > 0.05) {
-        propina = diferencia;
+      const vsEsperado = Math.round((montoDetectado - montoEsperado) * 100) / 100;
+      const vsTotal = Math.round((montoDetectado - montoTotal) * 100) / 100;
+      if (vsEsperado < -0.05) {
+        // Transfirió menos de lo mínimo que se comprometió a pagar. No se
+        // bloquea la reserva (no fue pedido), pero se marca para que Ana lo
+        // revise contra la foto — el monto registrado sigue siendo el mínimo
+        // esperado, sin inventar un cobro distinto por una lectura de IA.
+        notaPago = `Posible pago incompleto (revisar, faltan $${Math.abs(vsEsperado).toFixed(2)})`;
+      } else if (vsTotal > 0.05) {
+        // Pasó del total de la cuenta -> lo que exceda el total SÍ es propina.
+        propina = vsTotal;
+        montoAbono = montoTotal;
         notaPago = `Propina $${propina.toFixed(2)}`;
-      } else if (diferencia < -0.05) {
-        // No pidió esto Coky explícitamente, pero es el reverso natural de
-        // detectar propinas: si transfirió MENOS de lo esperado, se deja
-        // igual la reserva (no se bloquea) pero se marca para que Ana lo
-        // revise contra la foto, en vez de que pase desapercibido.
-        notaPago = `Posible pago incompleto (revisar, faltan $${Math.abs(diferencia).toFixed(2)})`;
+      } else if (vsEsperado > 0.05) {
+        // Transfirió más del mínimo pero sin pasarse del total: es un abono
+        // más grande, no propina (por ejemplo: eligió 20% pero mandó más).
+        montoAbono = montoDetectado;
+        notaPago = `Abono mayor al mínimo (detectado $${montoDetectado.toFixed(2)})`;
       }
+      // Si está dentro de +/-0.05 del mínimo esperado, se deja tal cual (sin nota).
     }
 
     const reservaId = crypto.randomUUID();
@@ -204,7 +217,7 @@ exports.handler = async (event) => {
     const saldoPendiente = Math.round((montoTotal - montoAbono) * 100) / 100;
     const lineaPagoTelegram = tipoPago === 'completo'
       ? `✅ <b>PAGADO COMPLETO: $${montoAbono.toFixed(2)}</b>\n💵 Saldo a cobrar en el local: <b>$0.00 — NO COBRAR MÁS</b>`
-      : `✅ Abono recibido (20%): <b>$${montoAbono.toFixed(2)}</b>\n💵 Saldo a cobrar en el local: <b>$${saldoPendiente.toFixed(2)}</b>`;
+      : `✅ Monto recibido: <b>$${montoAbono.toFixed(2)}</b>\n💵 Saldo a cobrar en el local: <b>$${saldoPendiente.toFixed(2)}</b>`;
 
     // Línea extra según lo que la IA leyó en la foto del comprobante (si se
     // pudo leer). "propina" ya viene calculada y guardada; aquí solo se avisa.
@@ -212,8 +225,10 @@ exports.handler = async (event) => {
     if (montoDetectado !== null) {
       if (propina > 0) {
         lineaLecturaTelegram = `\n🎁 Transfirió $${montoDetectado.toFixed(2)} — <b>propina detectada: $${propina.toFixed(2)}</b> (registrada automáticamente)`;
-      } else if (notaPago) {
+      } else if (notaPago.startsWith('Posible pago incompleto')) {
         lineaLecturaTelegram = `\n⚠️ <b>${notaPago}</b> — comprobante muestra $${montoDetectado.toFixed(2)}, revisar foto`;
+      } else if (notaPago.startsWith('Abono mayor')) {
+        lineaLecturaTelegram = `\nℹ️ ${notaPago}`;
       }
     }
 
@@ -242,7 +257,7 @@ exports.handler = async (event) => {
     // --- Email de confirmación al cliente (con comprobante adjunto de respaldo) ---
     const lineaPagoEmail = tipoPago === 'completo'
       ? `<b>Pagado por completo:</b> $${montoAbono.toFixed(2)}<br/><b>Saldo a pagar en el local:</b> $0.00`
-      : `<b>Abono pagado (20%):</b> $${montoAbono.toFixed(2)}<br/><b>Saldo a pagar en el local:</b> $${saldoPendiente.toFixed(2)}`;
+      : `<b>Abono pagado:</b> $${montoAbono.toFixed(2)}<br/><b>Saldo a pagar en el local:</b> $${saldoPendiente.toFixed(2)}`;
     const lineaPropinaEmail = propina > 0
       ? `<p style="color:#b08d57;">Vimos que transferiste $${montoDetectado.toFixed(2)} — registramos <b>$${propina.toFixed(2)} de propina</b>. ¡Muchas gracias! 💛</p>`
       : '';
