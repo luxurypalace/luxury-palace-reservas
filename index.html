@@ -258,10 +258,41 @@
   }
   .btn-fila-sin-horarios { margin-top: 10px; }
   .btn-fila-sin-horarios .btn { font-size: 0.82rem; padding: 11px 14px; }
+  .fecha-bloque {
+    margin-top: 10px; padding: 12px 14px; border-radius: 12px;
+    background: rgba(255,255,255,0.45); border: 1px solid var(--glass-borde);
+  }
+  .fecha-bloque label { display: block; font-size: 0.78rem; margin-bottom: 6px; color: var(--marron); opacity: 0.8; }
+  .fecha-bloque .btn { font-size: 0.85rem; padding: 10px 14px; }
+  .fecha-distinta-aviso {
+    display: inline-block; font-size: 0.72rem; font-weight: 600; letter-spacing: 0.03em;
+    color: var(--dorado); background: rgba(255,255,255,0.55); border: 1px solid rgba(191,158,109,0.5);
+    padding: 3px 10px; border-radius: 999px; margin-bottom: 8px;
+  }
 
   .paso-titulo { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--dorado); margin-bottom: 4px; }
   .resumen-linea { display: flex; justify-content: space-between; padding: 7px 0; border-bottom: 1px dashed rgba(226,207,184,0.7); font-size: 0.92rem; }
   .resumen-total { display: flex; justify-content: space-between; font-weight: 700; padding-top: 10px; font-size: 1.05rem; }
+  .opciones-pago-titulo { font-size: 0.85rem; font-weight: 600; margin: 16px 0 8px; color: var(--marron); }
+  .opciones-pago { display: flex; gap: 10px; flex-wrap: wrap; }
+  .opcion-pago {
+    flex: 1; min-width: 150px; cursor: pointer; border-radius: 14px; padding: 12px 14px;
+    background: var(--glass); border: 1px solid var(--glass-borde);
+    backdrop-filter: blur(12px) saturate(150%);
+    -webkit-backdrop-filter: blur(12px) saturate(150%);
+    transition: box-shadow .15s ease, border-color .15s ease;
+  }
+  .opcion-pago:hover { border-color: rgba(191,158,109,0.7); }
+  .opcion-pago.elegida {
+    border-color: var(--dorado); box-shadow: 0 6px 18px rgba(154,116,73,0.28), inset 0 1px 0 rgba(255,255,255,0.5);
+    background: rgba(255,255,255,0.55);
+  }
+  .opcion-pago-titulo { font-size: 0.85rem; font-weight: 700; color: var(--marron); display: flex; align-items: center; gap: 6px; }
+  .opcion-pago.elegida .opcion-pago-titulo::before {
+    content: '✓'; color: var(--dorado); font-weight: 700;
+  }
+  .opcion-pago-monto { font-size: 1.15rem; font-weight: 700; color: var(--dorado); margin-top: 3px; }
+  .opcion-pago-nota { font-size: 0.72rem; opacity: 0.65; margin-top: 3px; }
   .banco {
     background: rgba(253,246,236,0.6); border: 1px solid var(--glass-borde); border-radius: 14px; padding: 16px; margin: 14px 0; font-size: 0.9rem;
   }
@@ -376,8 +407,11 @@
 
     <div id="resumen" style="margin-top:16px;"></div>
 
+    <div class="opciones-pago-titulo">¿Cómo vas a pagar?</div>
+    <div id="opciones-pago" class="opciones-pago"></div>
+
     <div class="banco">
-      <b>Transferencia del 20% para confirmar</b><br/>
+      <b id="banco-titulo">Transferencia del 20% para confirmar</b><br/>
       Araujo Villarreal Ana Olga · C.I. 1762047627<br/>
       Banco Pichincha — Cuenta de ahorros
       <div class="banco-cuenta-fila">
@@ -387,6 +421,7 @@
           <span id="texto-copiar-cuenta">Copiar número</span>
         </button>
       </div>
+      <div id="banco-monto" style="margin-top:10px; font-weight:700; color:var(--dorado);"></div>
     </div>
 
     <label for="input-comprobante">Comprobante de la transferencia (foto o PDF)</label>
@@ -468,7 +503,21 @@ document.getElementById('btn-copiar-cuenta').addEventListener('click', async () 
 // Catálogo (debe reflejar config/servicios.js del backend — se mantiene una
 // copia liviana aquí para pintar la UI sin depender del servidor).
 // ---------------------------------------------------------------------------
-const PERSONAL_NOMBRES = { ana: 'Ana', ceci: 'Ceci', leana: 'Leana' };
+// Valores de respaldo (por si /.netlify/functions/personal aún no responde o
+// las pestañas del Sheet no existen todavía) — se sobrescriben abajo con los
+// nombres reales configurados por Ana en el Sheet, en cuanto llegan.
+let PERSONAL_NOMBRES = { ana: 'Ana', ceci: 'Ceci', leana: 'Leana' };
+(function cargarNombresPersonal() {
+  fetch('/.netlify/functions/personal', { cache: 'no-store' })
+    .then(r => r.ok ? r.json() : null)
+    .then(data => {
+      if (!data || !Array.isArray(data.personal)) return;
+      const nombres = {};
+      data.personal.forEach(p => { nombres[p.id] = p.nombre; });
+      if (Object.keys(nombres).length > 0) PERSONAL_NOMBRES = nombres;
+    })
+    .catch(() => { /* se queda con los nombres de respaldo */ });
+})();
 const CATEGORIAS = [
   { id: 'unas', nombre: 'Uñas' },
   { id: 'pestanas_cejas', nombre: 'Pestañas y cejas' },
@@ -525,6 +574,9 @@ const estado = {
   categoriasVisitadas: new Set(),
   fecha: null,
   cadena: [],             // horarios asignados, calculado en el paso de agenda
+  fechasSegmento: [],     // fecha alterna por índice, solo si ese servicio se movió de día
+  totalCita: 0,
+  tipoPago: 'abono',      // 'abono' (20%) o 'completo' (100%) — elegido en paso-datos
 };
 
 function nombreServicio(id) { return (SERVICIOS.find(s => s.id === id) || {}).nombre || id; }
@@ -666,6 +718,8 @@ function irAAgenda() {
   if (estado.carrito.length === 0) return;
   estado.fecha = null;
   estado.cadena = [];
+  estado.fechasSegmento = [];
+  estado.tipoPago = 'abono';
   mostrarPantalla('paso-fecha');
   const hoy = new Date().toISOString().slice(0,10);
   document.getElementById('input-fecha').min = hoy;
@@ -684,6 +738,7 @@ document.getElementById('btn-a-horarios').addEventListener('click', () => {
   }
   estado.fecha = fecha;
   estado.cadena = [];
+  estado.fechasSegmento = [];
   mostrarPantalla('paso-horarios');
   renderPasoHorarios();
 });
@@ -691,14 +746,40 @@ document.getElementById('btn-a-horarios').addEventListener('click', () => {
 // ---------------------------------------------------------------------------
 // PASO HORARIOS (misma lógica secuencial que el backend espera)
 // ---------------------------------------------------------------------------
+// Cada servicio del carrito puede terminar en una fecha distinta a la fecha
+// general de la cita, si para su horario original no quedó cupo y el cliente
+// decidió moverlo a otro día en vez de sacarlo de la cita. estado.fechasSegmento
+// guarda esa fecha "personalizada" por índice; si no hay una, se usa estado.fecha.
+function fechaEfectiva(i) {
+  return (estado.fechasSegmento && estado.fechasSegmento[i]) || estado.fecha;
+}
+
+function formatearFechaLegible(fechaISO) {
+  const [y, m, d] = fechaISO.split('-').map(Number);
+  const meses = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+  return `${d} ${meses[m - 1]}`;
+}
+
+// El encadenamiento (un servicio empieza justo cuando termina el anterior)
+// solo tiene sentido si ambos quedaron en el MISMO día. Si el anterior se
+// movió a otra fecha, este servicio arranca libre desde la apertura del día.
+function cadenaPreviaPara(i) {
+  if (i === 0) return [];
+  const anterior = estado.cadena[i - 1];
+  if (anterior && fechaEfectiva(i - 1) === fechaEfectiva(i)) {
+    return [{ finMin: anterior.finMin }];
+  }
+  return [];
+}
+
 async function renderPasoHorarios() {
   const cont = document.getElementById('lista-horarios');
   cont.innerHTML = '';
   document.getElementById('aviso-horarios').classList.add('oculto');
   document.getElementById('btn-a-datos').classList.add('oculto');
+  estado.cadena = [];
 
-  for (let i = 0; i < estado.carrito.length; i++) {
-    const item = estado.carrito[i];
+  estado.carrito.forEach((item, i) => {
     const catId = categoriaDeServicio(item.servicioId);
     const bloque = document.createElement('div');
     bloque.className = 'bloque-servicio';
@@ -711,92 +792,128 @@ async function renderPasoHorarios() {
           <div class="con-quien">con ${nombrePersonal(item.personalId)}</div>
         </div>
       </div>
+      <div class="fecha-bloque oculto" id="fecha-bloque-${i}"></div>
       <div class="slots" id="slots-${i}"><span class="cargando">Buscando disponibilidad…</span></div>
     `;
     cont.appendChild(bloque);
+  });
 
-    const cadenaPrevia = estado.cadena.slice(0, i).map(c => ({ finMin: c.finMin }));
-    let data;
-    try {
-      const res = await fetch('/.netlify/functions/disponibilidad', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fecha: estado.fecha, servicioId: item.servicioId, personalId: item.personalId, cadenaPrevia })
-      });
-      data = await res.json();
-      if (!res.ok) {
-        // El backend respondió con un error real (500/400) — no lo ocultamos
-        // como "no hay horarios", mostramos el motivo real para poder depurar.
-        data = { slots: [], bloqueado: true, motivo: `Error del servidor: ${data.error || res.status}` };
-      }
-    } catch (e) {
-      data = { slots: [], bloqueado: true, motivo: 'Error de conexión, intenta de nuevo.' };
-    }
-
-    const slotsDiv = document.getElementById(`slots-${i}`);
-    slotsDiv.innerHTML = '';
-    if (data.bloqueado || !data.slots || data.slots.length === 0) {
-      slotsDiv.innerHTML = `
-        <span class="sin-horarios">${data.motivo || 'No hay horarios disponibles ese día.'}</span>
-        <div class="btn-fila btn-fila-sin-horarios">
-          <button type="button" class="btn btn-secundario" id="btn-cambiar-fecha-${i}">Cambiar de fecha</button>
-          <button type="button" class="btn btn-secundario" id="btn-quitar-servicio-${i}">Quitar este servicio</button>
-        </div>`;
-
-      document.getElementById(`btn-cambiar-fecha-${i}`).addEventListener('click', () => {
-        estado.cadena = [];
-        document.getElementById('input-fecha').value = estado.fecha || '';
-        mostrarPantalla('paso-fecha');
-      });
-
-      document.getElementById(`btn-quitar-servicio-${i}`).addEventListener('click', () => {
-        estado.carrito.splice(i, 1);
-        estado.cadena = [];
-        actualizarCarritoFlotante();
-        if (estado.carrito.length === 0) {
-          renderGridCategorias();
-          mostrarPantalla('pantalla-inicio');
-        } else {
-          renderPasoHorarios();
-        }
-      });
-
-      break;
-    }
-
-    await new Promise(resolveSlot => {
-      data.slots.forEach(hora => {
-        const btn = document.createElement('div');
-        btn.className = 'slot';
-        btn.textContent = hora;
-        btn.addEventListener('click', () => {
-          [...slotsDiv.children].forEach(c => c.classList.remove('elegido'));
-          btn.classList.add('elegido');
-          const [h, m] = hora.split(':').map(Number);
-          const inicioMin = h * 60 + m;
-          const finMin = inicioMin + DURACION_MIN;
-          const horaFin = `${String(Math.floor(finMin/60)).padStart(2,'0')}:${String(finMin%60).padStart(2,'0')}`;
-          estado.cadena[i] = { servicioId: item.servicioId, personalId: item.personalId, horaInicio: hora, horaFin, finMin };
-          estado.cadena.length = i + 1;
-          resolveSlot();
-          continuarSiCompleto();
-        });
-        slotsDiv.appendChild(btn);
-      });
-    });
-
-    await new Promise(resolveElegido => {
-      const check = setInterval(() => {
-        if (estado.cadena[i]) { clearInterval(check); resolveElegido(); }
-      }, 200);
-    });
-  }
+  await cargarSlotsDesde(0);
 }
 
-function continuarSiCompleto() {
-  if (estado.cadena.length === estado.carrito.length && estado.cadena.every(Boolean)) {
+async function cargarSlotsDesde(i) {
+  if (i >= estado.carrito.length) {
     document.getElementById('btn-a-datos').classList.remove('oculto');
+    return;
   }
+
+  const item = estado.carrito[i];
+  const fechaSeg = fechaEfectiva(i);
+  const cadenaPrevia = cadenaPreviaPara(i);
+  const slotsDiv = document.getElementById(`slots-${i}`);
+  slotsDiv.innerHTML = '<span class="cargando">Buscando disponibilidad…</span>';
+
+  let data;
+  try {
+    const res = await fetch('/.netlify/functions/disponibilidad', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fecha: fechaSeg, servicioId: item.servicioId, personalId: item.personalId, cadenaPrevia })
+    });
+    data = await res.json();
+    if (!res.ok) {
+      // El backend respondió con un error real (500/400) — no lo ocultamos
+      // como "no hay horarios", mostramos el motivo real para poder depurar.
+      data = { slots: [], bloqueado: true, motivo: `Error del servidor: ${data.error || res.status}` };
+    }
+  } catch (e) {
+    data = { slots: [], bloqueado: true, motivo: 'Error de conexión, intenta de nuevo.' };
+  }
+
+  if (data.bloqueado || !data.slots || data.slots.length === 0) {
+    renderSinHorarios(i, data.motivo, fechaSeg);
+    return;
+  }
+
+  renderSlotsDisponibles(i, data.slots, fechaSeg);
+}
+
+function renderSlotsDisponibles(i, slots, fechaSeg) {
+  const item = estado.carrito[i];
+  const slotsDiv = document.getElementById(`slots-${i}`);
+  slotsDiv.innerHTML = '';
+
+  // Si este servicio quedó en una fecha distinta a la del resto de la cita,
+  // lo dejamos claro justo encima de sus horarios.
+  if (fechaSeg !== estado.fecha) {
+    const aviso = document.createElement('div');
+    aviso.className = 'fecha-distinta-aviso';
+    aviso.textContent = `Para el ${formatearFechaLegible(fechaSeg)}`;
+    slotsDiv.appendChild(aviso);
+  }
+
+  slots.forEach(hora => {
+    const btn = document.createElement('div');
+    btn.className = 'slot';
+    btn.textContent = hora;
+    btn.addEventListener('click', () => {
+      [...slotsDiv.querySelectorAll('.slot')].forEach(c => c.classList.remove('elegido'));
+      btn.classList.add('elegido');
+      const [h, m] = hora.split(':').map(Number);
+      const inicioMin = h * 60 + m;
+      const finMin = inicioMin + DURACION_MIN;
+      const horaFin = `${String(Math.floor(finMin/60)).padStart(2,'0')}:${String(finMin%60).padStart(2,'0')}`;
+      estado.cadena[i] = { servicioId: item.servicioId, personalId: item.personalId, horaInicio: hora, horaFin, finMin, fecha: fechaSeg };
+      estado.cadena.length = i + 1;
+      document.getElementById('btn-a-datos').classList.add('oculto');
+      cargarSlotsDesde(i + 1);
+    });
+    slotsDiv.appendChild(btn);
+  });
+}
+
+function renderSinHorarios(i, motivo, fechaSeg) {
+  const slotsDiv = document.getElementById(`slots-${i}`);
+  const fechaBloqueDiv = document.getElementById(`fecha-bloque-${i}`);
+  fechaBloqueDiv.classList.add('oculto');
+  fechaBloqueDiv.innerHTML = '';
+
+  slotsDiv.innerHTML = `
+    <span class="sin-horarios">${motivo || 'No hay horarios disponibles ese día.'}</span>
+    <div class="btn-fila btn-fila-sin-horarios">
+      <button type="button" class="btn btn-secundario" id="btn-cambiar-fecha-${i}">Cambiar fecha de este servicio</button>
+      <button type="button" class="btn btn-secundario" id="btn-quitar-servicio-${i}">Quitar este servicio</button>
+    </div>`;
+
+  document.getElementById(`btn-cambiar-fecha-${i}`).addEventListener('click', () => {
+    const hoy = new Date().toISOString().slice(0,10);
+    fechaBloqueDiv.classList.remove('oculto');
+    fechaBloqueDiv.innerHTML = `
+      <label>Nueva fecha para este servicio</label>
+      <input type="date" id="fecha-alt-${i}" min="${hoy}" value="${fechaSeg}" />
+      <button type="button" class="btn" id="btn-buscar-alt-${i}" style="margin-top:8px;">Buscar horarios</button>
+    `;
+    document.getElementById(`btn-buscar-alt-${i}`).addEventListener('click', () => {
+      const nuevaFecha = document.getElementById(`fecha-alt-${i}`).value;
+      if (!nuevaFecha) return;
+      if (!estado.fechasSegmento) estado.fechasSegmento = [];
+      estado.fechasSegmento[i] = nuevaFecha;
+      fechaBloqueDiv.classList.add('oculto');
+      cargarSlotsDesde(i);
+    });
+  });
+
+  document.getElementById(`btn-quitar-servicio-${i}`).addEventListener('click', () => {
+    estado.carrito.splice(i, 1);
+    if (estado.fechasSegmento) estado.fechasSegmento.splice(i, 1);
+    actualizarCarritoFlotante();
+    if (estado.carrito.length === 0) {
+      renderGridCategorias();
+      mostrarPantalla('pantalla-inicio');
+    } else {
+      renderPasoHorarios();
+    }
+  });
 }
 
 document.getElementById('btn-a-datos').addEventListener('click', () => {
@@ -814,12 +931,51 @@ function renderResumen() {
   estado.cadena.forEach(seg => {
     const precio = precioServicio(seg.servicioId);
     total += precio;
-    html += `<div class="resumen-linea"><span>${nombreServicio(seg.servicioId)} (${nombrePersonal(seg.personalId)}) — ${seg.horaInicio}</span><span>$${precio.toFixed(2)}</span></div>`;
+    const fechaTxt = seg.fecha && seg.fecha !== estado.fecha ? ` (${formatearFechaLegible(seg.fecha)})` : '';
+    html += `<div class="resumen-linea"><span>${nombreServicio(seg.servicioId)} (${nombrePersonal(seg.personalId)}) — ${seg.horaInicio}${fechaTxt}</span><span>$${precio.toFixed(2)}</span></div>`;
   });
-  const abono = Math.round(total * 0.20 * 100) / 100;
   html += `<div class="resumen-total"><span>Total</span><span>$${total.toFixed(2)}</span></div>`;
-  html += `<div class="resumen-total" style="color:#b08d57;"><span>Abono a transferir (20%)</span><span>$${abono.toFixed(2)}</span></div>`;
   cont.innerHTML = html;
+  estado.totalCita = total;
+  renderOpcionesPago();
+}
+
+// ---------------------------------------------------------------------------
+// Elección de tipo de pago: abono del 20% o cancelación del 100%. Se pide
+// ANTES de subir el comprobante para que quede claro cuánto transferir y para
+// que en el local no haya confusión de cobrar de más a quien ya pagó todo.
+// ---------------------------------------------------------------------------
+function renderOpcionesPago() {
+  const total = estado.totalCita || 0;
+  const abono = Math.round(total * 0.20 * 100) / 100;
+  const cont = document.getElementById('opciones-pago');
+  cont.innerHTML = `
+    <div class="opcion-pago${estado.tipoPago === 'abono' ? ' elegida' : ''}" data-tipo="abono">
+      <div class="opcion-pago-titulo">Abono del 20%</div>
+      <div class="opcion-pago-monto">$${abono.toFixed(2)}</div>
+      <div class="opcion-pago-nota">Pagas $${(total - abono).toFixed(2)} en el local</div>
+    </div>
+    <div class="opcion-pago${estado.tipoPago === 'completo' ? ' elegida' : ''}" data-tipo="completo">
+      <div class="opcion-pago-titulo">Pago completo</div>
+      <div class="opcion-pago-monto">$${total.toFixed(2)}</div>
+      <div class="opcion-pago-nota">Sin saldo pendiente en el local</div>
+    </div>`;
+  cont.querySelectorAll('.opcion-pago').forEach((el) => {
+    el.addEventListener('click', () => {
+      estado.tipoPago = el.dataset.tipo;
+      renderOpcionesPago();
+    });
+  });
+  actualizarBanco();
+}
+
+function actualizarBanco() {
+  const total = estado.totalCita || 0;
+  const abono = Math.round(total * 0.20 * 100) / 100;
+  const monto = estado.tipoPago === 'completo' ? total : abono;
+  document.getElementById('banco-titulo').textContent =
+    estado.tipoPago === 'completo' ? 'Transferencia del 100% (pago completo) para confirmar' : 'Transferencia del 20% para confirmar';
+  document.getElementById('banco-monto').textContent = `Monto a transferir: $${monto.toFixed(2)}`;
 }
 
 function fileToBase64(file) {
@@ -850,13 +1006,16 @@ document.getElementById('btn-confirmar').addEventListener('click', async () => {
 
   try {
     const contentBase64 = await fileToBase64(archivo);
-    const segmentos = estado.cadena.map(seg => ({ ...seg, fecha: estado.fecha }));
+    // Cada segmento ya trae su propia fecha (fue asignada al elegir el horario:
+    // la general de la cita, o una alterna si ese servicio se movió de día).
+    const segmentos = estado.cadena.map(seg => ({ ...seg }));
     const res = await fetch('/.netlify/functions/reservar', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         cliente: { nombre, telefono, email },
         segmentos,
+        tipoPago: estado.tipoPago,
         comprobante: { filename: archivo.name, mimeType: archivo.type, contentBase64 }
       })
     });
@@ -865,8 +1024,12 @@ document.getElementById('btn-confirmar').addEventListener('click', async () => {
 
     document.getElementById('carrito-flotante').classList.add('oculto');
     mostrarPantalla('paso-exito');
+    const saldo = data.montoTotal - data.montoAbono;
+    const lineaPago = saldo > 0.001
+      ? `Total $${data.montoTotal.toFixed(2)}, pagaste $${data.montoAbono.toFixed(2)}, saldo en el local $${saldo.toFixed(2)}.`
+      : `Total $${data.montoTotal.toFixed(2)}, pagado por completo. No queda saldo pendiente.`;
     document.getElementById('mensaje-exito').innerHTML =
-      `Te enviamos la confirmación a <b>${email}</b>. Total $${data.montoTotal.toFixed(2)}, abono $${data.montoAbono.toFixed(2)}.` +
+      `Te enviamos la confirmación a <b>${email}</b>. ${lineaPago}` +
       `<span class="nota-spam">Si no la ves en unos minutos, revisa también tu carpeta de spam o correo no deseado.</span>`;
   } catch (e) {
     aviso.textContent = e.message;
