@@ -15,7 +15,7 @@
 // }
 
 const { readRange } = require('./_sheets');
-const { PERSONAL } = require('../../config/servicios');
+const { obtenerPersonal } = require('./_personal');
 
 function ahoraEnQuito() {
   const fmt = new Intl.DateTimeFormat('en-CA', {
@@ -63,18 +63,18 @@ exports.handler = async () => {
       }))
       .sort((a, b) => hhmmToMin(a.horaInicio) - hhmmToMin(b.horaInicio));
 
-    const personalIds = Object.keys(PERSONAL);
+    const listaPersonal = (await obtenerPersonal()).filter((p) => p.activo);
     const porPersonal = {};
-    for (const id of personalIds) porPersonal[id] = [];
+    for (const p of listaPersonal) porPersonal[p.id] = [];
     for (const c of citasHoy) {
       if (!porPersonal[c.personalId]) porPersonal[c.personalId] = [];
       porPersonal[c.personalId].push(c);
     }
 
-    const personal = Object.keys(porPersonal).map((id) => ({
-      id,
-      nombre: (PERSONAL[id] && PERSONAL[id].nombre) || id,
-      citas: porPersonal[id].map((c) => ({
+    const personal = listaPersonal.map((p) => ({
+      id: p.id,
+      nombre: p.nombre,
+      citas: (porPersonal[p.id] || []).map((c) => ({
         ...c,
         enCurso: hhmmToMin(c.horaInicio) <= ahoraMin && ahoraMin < hhmmToMin(c.horaFin),
         pasada: hhmmToMin(c.horaFin) <= ahoraMin,

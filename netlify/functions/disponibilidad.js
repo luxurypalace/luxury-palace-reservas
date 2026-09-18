@@ -20,6 +20,7 @@
 
 const { readRange } = require('./_sheets');
 const { SERVICIOS, HORARIO } = require('../../config/servicios');
+const { ventanaDelDia, diaSemanaDe } = require('./_personal');
 
 // Fecha y hora actual en Ecuador (America/Guayaquil), para no ofrecer
 // horarios que ya pasaron cuando se está reservando para el día de hoy.
@@ -60,11 +61,20 @@ exports.handler = async (event) => {
     if (!servicio) return resp(400, { error: 'servicioId inválido' });
     if (!servicio.personal.includes(personalId)) return resp(400, { error: 'Ese personal no realiza ese servicio' });
 
+    // 0) Ventana de horario de ESA persona ese día de la semana (editable por
+    // Ana en la pestaña "Horarios" del Sheet; si no está configurada, cae al
+    // horario general de config/servicios.js).
+    const dia = diaSemanaDe(fecha);
+    const ventana = await ventanaDelDia(personalId, dia);
+    if (!ventana) {
+      return resp(200, { slots: [], bloqueado: true, motivo: 'Ese día no atiende. Elige otra fecha.' });
+    }
+
     // 1) Punto de partida más temprano posible para este segmento
-    let earliest = HORARIO.aperturaMin;
+    let earliest = ventana.inicioMin;
     if (Array.isArray(cadenaPrevia) && cadenaPrevia.length > 0) {
       const ultimo = cadenaPrevia[cadenaPrevia.length - 1];
-      earliest = ultimo.finMin;
+      earliest = Math.max(earliest, ultimo.finMin);
     }
 
     // Si la fecha elegida es HOY (hora Ecuador), no se puede ofrecer un horario
@@ -74,15 +84,15 @@ exports.handler = async (event) => {
       earliest = ahoraMinEC;
     }
 
-    // Regla dura: si ya no se puede iniciar un nuevo segmento antes de las 18:00,
-    // no hay más horarios disponibles hoy para agregar servicios.
-    if (earliest > HORARIO.ultimoInicioMin) {
+    // Regla dura: si ya no se puede iniciar un nuevo segmento antes del cierre
+    // de esa persona ese día, no hay más horarios disponibles para agregar.
+    if (earliest > ventana.finMin) {
       return resp(200, {
         slots: [],
         bloqueado: true,
         motivo: fecha === hoyEC
           ? 'Ya no quedan horarios disponibles por hoy. Elige otra fecha.'
-          : 'La jornada ya no permite agregar otro servicio hoy (el límite de inicio es 18:00). Elige otra fecha para este servicio o quítalo de la cita.',
+          : 'Esa persona ya no tiene cupo ese día para otro servicio. Elige otra fecha para este servicio o quítalo de la cita.',
       });
     }
 
@@ -101,9 +111,9 @@ exports.handler = async (event) => {
     const ocupacion = [...ocupados, ...bloqueosDia];
 
     // 4) Generar candidatos y filtrar los que chocan con algo ocupado
-    const inicioBusqueda = Math.ceil(Math.max(earliest, HORARIO.aperturaMin) / HORARIO.granularidadMin) * HORARIO.granularidadMin;
+    const inicioBusqueda = Math.ceil(Math.max(earliest, ventana.inicioMin) / HORARIO.granularidadMin) * HORARIO.granularidadMin;
     const slots = [];
-    for (let t = inicioBusqueda; t <= HORARIO.ultimoInicioMin; t += HORARIO.granularidadMin) {
+    for (let t = inicioBusqueda; t <= ventana.finMin; t += HORARIO.granularidadMin) {
       const finCandidato = t + servicio.duracionMin;
       const choca = ocupacion.some((o) => t < o.fin && finCandidato > o.inicio);
       if (!choca) slots.push(minToHHMM(t));
