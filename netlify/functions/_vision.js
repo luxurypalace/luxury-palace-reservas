@@ -42,10 +42,12 @@ function httpsRequestJSON(options, bodyStr) {
 }
 
 // Modelo económico y rápido — de sobra para leer un número en una captura de
-// transferencia bancaria. Si en la práctica falla mucho con comprobantes
-// difíciles (fotos torcidas, bancos con diseños raros), se puede cambiar por
-// 'claude-3-5-sonnet-latest' aquí sin tocar nada más.
-const MODELO = 'claude-3-5-haiku-latest';
+// transferencia bancaria. IMPORTANTE: Anthropic retira modelos viejos con el
+// tiempo (este proyecto ya tuvo que actualizarse una vez, en septiembre 2026,
+// porque 'claude-3-5-haiku-latest' fue retirado el 19 de feb 2026). Si en el
+// futuro esto empieza a fallar con confianza:'error' de nuevo, lo primero a
+// revisar es si este modelo sigue vigente en platform.claude.com/docs/en/about-claude/model-deprecations.
+const MODELO = 'claude-haiku-4-5-20251001';
 
 const TIPOS_IMAGEN_SOPORTADOS = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
 
