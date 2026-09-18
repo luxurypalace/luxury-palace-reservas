@@ -22,6 +22,7 @@ const { enviarMensaje, enviarDocumentoBytes } = require('./_telegram');
 const { enviarEmail } = require('./_email');
 const { SERVICIOS, PAGO } = require('../../config/servicios');
 const { ventanaDelDia, diaSemanaDe, nombrePersonal } = require('./_personal');
+const { leerMontoComprobante } = require('./_vision');
 
 function hhmmToMin(hhmm) {
   const [h, m] = hhmm.split(':').map(Number);
@@ -122,13 +123,46 @@ exports.handler = async (event) => {
       : Math.round(montoTotal * PAGO.porcentajeAbono * 100) / 100;
     const etiquetaTipoPago = tipoPago === 'completo' ? 'Pago completo' : 'Abono 20%';
 
+    // --- Lectura del monto transferido en la foto del comprobante ---
+    // Se hace justo antes de guardar (después de validar horarios y choques)
+    // para no gastar la llamada a la API en una reserva que de todos modos
+    // iba a fallar por otro motivo.
+    const lectura = await leerMontoComprobante({
+      base64: comprobante.contentBase64,
+      mimeType: comprobante.mimeType,
+    });
+    let montoDetectado = null;
+    let notaPago = '';
+    let propina = 0;
+    if (lectura.confianza === 'baja') {
+      // El modelo SÍ pudo intentar leer la imagen y no logró un monto claro
+      // — se pide una foto mejor en vez de aceptar un comprobante dudoso.
+      return resp(400, {
+        error: 'No pudimos leer con claridad el monto transferido en la imagen. Por favor sube una foto más nítida y completa del comprobante.',
+      });
+    }
+    if (lectura.monto !== null) {
+      montoDetectado = lectura.monto;
+      const diferencia = Math.round((montoDetectado - montoAbono) * 100) / 100;
+      if (diferencia > 0.05) {
+        propina = diferencia;
+        notaPago = `Propina $${propina.toFixed(2)}`;
+      } else if (diferencia < -0.05) {
+        // No pidió esto Coky explícitamente, pero es el reverso natural de
+        // detectar propinas: si transfirió MENOS de lo esperado, se deja
+        // igual la reserva (no se bloquea) pero se marca para que Ana lo
+        // revise contra la foto, en vez de que pase desapercibido.
+        notaPago = `Posible pago incompleto (revisar, faltan $${Math.abs(diferencia).toFixed(2)})`;
+      }
+    }
+
     const reservaId = crypto.randomUUID();
     const ahora = new Date().toISOString();
 
     // --- Guardar cada segmento como una fila ---
     for (let i = 0; i < detalle.length; i++) {
       const d = detalle[i];
-      await appendRow('Reservas!A:U', [
+      await appendRow('Reservas!A:W', [
         reservaId,
         d.fecha,
         d.horaInicio,
@@ -149,7 +183,9 @@ exports.handler = async (event) => {
         ahora,
         'FALSE',
         'FALSE',
-        etiquetaTipoPago, // columna U: "Abono 20%" o "Pago completo" — para que en el local quede claro cuánto falta cobrar
+        etiquetaTipoPago, // columna U: "Abono 20%" o "Pago completo"
+        montoDetectado === null ? '' : montoDetectado, // columna V: monto leído por IA en el comprobante (vacío si no se pudo leer)
+        notaPago, // columna W: "Propina $X.XX", "Posible pago incompleto (...)" o vacío
       ]);
     }
 
@@ -170,6 +206,17 @@ exports.handler = async (event) => {
       ? `✅ <b>PAGADO COMPLETO: $${montoAbono.toFixed(2)}</b>\n💵 Saldo a cobrar en el local: <b>$0.00 — NO COBRAR MÁS</b>`
       : `✅ Abono recibido (20%): <b>$${montoAbono.toFixed(2)}</b>\n💵 Saldo a cobrar en el local: <b>$${saldoPendiente.toFixed(2)}</b>`;
 
+    // Línea extra según lo que la IA leyó en la foto del comprobante (si se
+    // pudo leer). "propina" ya viene calculada y guardada; aquí solo se avisa.
+    let lineaLecturaTelegram = '';
+    if (montoDetectado !== null) {
+      if (propina > 0) {
+        lineaLecturaTelegram = `\n🎁 Transfirió $${montoDetectado.toFixed(2)} — <b>propina detectada: $${propina.toFixed(2)}</b> (registrada automáticamente)`;
+      } else if (notaPago) {
+        lineaLecturaTelegram = `\n⚠️ <b>${notaPago}</b> — comprobante muestra $${montoDetectado.toFixed(2)}, revisar foto`;
+      }
+    }
+
     const captionTelegram =
       `🌸 <b>NUEVA CITA CONFIRMADA</b> 🌸\n` +
       `<b>Luxury Palace</b>\n` +
@@ -181,7 +228,7 @@ exports.handler = async (event) => {
       `${listaServicios}\n\n` +
       `━━━━━━━━━━━━━━━━━━\n` +
       `💰 Total: <b>$${montoTotal.toFixed(2)}</b>\n` +
-      `${lineaPagoTelegram}\n\n` +
+      `${lineaPagoTelegram}${lineaLecturaTelegram}\n\n` +
       `🧾 Comprobante adjunto 👇\n` +
       `🆔 Reserva: <code>${reservaId}</code>`;
 
@@ -196,6 +243,9 @@ exports.handler = async (event) => {
     const lineaPagoEmail = tipoPago === 'completo'
       ? `<b>Pagado por completo:</b> $${montoAbono.toFixed(2)}<br/><b>Saldo a pagar en el local:</b> $0.00`
       : `<b>Abono pagado (20%):</b> $${montoAbono.toFixed(2)}<br/><b>Saldo a pagar en el local:</b> $${saldoPendiente.toFixed(2)}`;
+    const lineaPropinaEmail = propina > 0
+      ? `<p style="color:#b08d57;">Vimos que transferiste $${montoDetectado.toFixed(2)} — registramos <b>$${propina.toFixed(2)} de propina</b>. ¡Muchas gracias! 💛</p>`
+      : '';
     const htmlCliente = `
       <div style="font-family:Georgia,serif;color:#4a3025;">
         <h2 style="color:#b08d57;">Luxury Palace — Confirmación de cita</h2>
@@ -203,6 +253,7 @@ exports.handler = async (event) => {
         <p>${listaServicios.replace(/<b>|<\/b>/g, '').replace(/\n/g, '<br/>')}</p>
         <p><b>Total:</b> $${montoTotal.toFixed(2)}<br/>
            ${lineaPagoEmail}</p>
+        ${lineaPropinaEmail}
         <p>Tiempo máximo de espera: ${require('../../config/servicios').REGLAS.toleranciaEsperaMin} minutos.</p>
         <p>Si necesitas modificar tu cita, hazlo con un mínimo de 2 horas de anticipación
            para no perder el abono.</p>
@@ -220,7 +271,7 @@ exports.handler = async (event) => {
       attachmentBase64: { filename: comprobante.filename || 'comprobante.jpg', content: comprobante.contentBase64 },
     });
 
-    return resp(200, { ok: true, reservaId, montoTotal, montoAbono });
+    return resp(200, { ok: true, reservaId, montoTotal, montoAbono, montoDetectado, propina });
   } catch (err) {
     return resp(500, { error: err.message });
   }
