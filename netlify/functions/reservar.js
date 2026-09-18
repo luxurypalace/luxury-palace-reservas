@@ -168,6 +168,12 @@ exports.handler = async (event) => {
       }
       // Si está dentro de +/-0.05 del mínimo esperado, se deja tal cual (sin nota).
     }
+    // Diagnóstico crudo de la lectura, SIEMPRE registrado (incluso cuando no
+    // hubo monto), para poder saber en el Sheet por qué no se detectó algo:
+    // 'alta'/'media' = sí leyó; 'sin_configurar' = falta ANTHROPIC_API_KEY en
+    // Netlify; 'sin_soporte' = el archivo no es una imagen (ej. PDF);
+    // 'error' = falló la llamada a la API (red, key inválida, etc.).
+    const diagnosticoLecturaIA = lectura.confianza;
 
     const reservaId = crypto.randomUUID();
     const ahora = new Date().toISOString();
@@ -175,7 +181,7 @@ exports.handler = async (event) => {
     // --- Guardar cada segmento como una fila ---
     for (let i = 0; i < detalle.length; i++) {
       const d = detalle[i];
-      await appendRow('Reservas!A:W', [
+      await appendRow('Reservas!A:X', [
         reservaId,
         d.fecha,
         d.horaInicio,
@@ -199,6 +205,7 @@ exports.handler = async (event) => {
         etiquetaTipoPago, // columna U: "Abono 20%" o "Pago completo"
         montoDetectado === null ? '' : montoDetectado, // columna V: monto leído por IA en el comprobante (vacío si no se pudo leer)
         notaPago, // columna W: "Propina $X.XX", "Posible pago incompleto (...)" o vacío
+        diagnosticoLecturaIA, // columna X: 'alta'/'media' (sí leyó), 'sin_configurar' (falta ANTHROPIC_API_KEY), 'sin_soporte' (no es imagen), 'error' (falló la llamada)
       ]);
     }
 
@@ -230,6 +237,10 @@ exports.handler = async (event) => {
       } else if (notaPago.startsWith('Abono mayor')) {
         lineaLecturaTelegram = `\nℹ️ ${notaPago}`;
       }
+    } else if (diagnosticoLecturaIA === 'sin_configurar') {
+      lineaLecturaTelegram = `\n🔧 <b>Lectura automática de propina apagada</b> — falta configurar ANTHROPIC_API_KEY en Netlify`;
+    } else if (diagnosticoLecturaIA === 'error') {
+      lineaLecturaTelegram = `\n🔧 <b>No se pudo leer el comprobante</b> (falló la conexión con la IA) — verificar manualmente`;
     }
 
     const captionTelegram =
