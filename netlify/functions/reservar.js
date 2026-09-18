@@ -20,7 +20,8 @@ const crypto = require('crypto');
 const { readRange, appendRow } = require('./_sheets');
 const { enviarMensaje, enviarDocumentoBytes } = require('./_telegram');
 const { enviarEmail } = require('./_email');
-const { SERVICIOS, PAGO, HORARIO } = require('../../config/servicios');
+const { SERVICIOS, PAGO } = require('../../config/servicios');
+const { ventanaDelDia, diaSemanaDe, nombrePersonal } = require('./_personal');
 
 function hhmmToMin(hhmm) {
   const [h, m] = hhmm.split(':').map(Number);
@@ -50,7 +51,7 @@ function ahoraEnQuito() {
 
 exports.handler = async (event) => {
   try {
-    const { cliente, segmentos, comprobante } = JSON.parse(event.body || '{}');
+    const { cliente, segmentos, comprobante, tipoPago } = JSON.parse(event.body || '{}');
 
     if (!cliente || !cliente.nombre || !cliente.telefono || !cliente.email) {
       return resp(400, { error: 'Faltan datos del cliente' });
@@ -61,8 +62,14 @@ exports.handler = async (event) => {
     if (!comprobante || !comprobante.contentBase64) {
       return resp(400, { error: 'Falta el comprobante de pago' });
     }
+    if (tipoPago !== 'abono' && tipoPago !== 'completo') {
+      return resp(400, { error: 'Falta indicar el tipo de pago (abono del 20% o pago completo)' });
+    }
 
-    // --- Validación de la regla de las 18:00, horarios ya pasados y servicios/personal válidos ---
+    // --- Validación de horario de cada persona ese día, horarios ya pasados
+    // y servicios/personal válidos. El horario de cada persona (editable por
+    // Ana en la pestaña "Horarios" del Sheet) reemplaza el límite fijo de
+    // las 18:00 que antes era igual para todos. ---
     const { fecha: hoyEC, minutos: ahoraMinEC } = ahoraEnQuito();
     for (const seg of segmentos) {
       const servicio = SERVICIOS.find((s) => s.id === seg.servicioId);
@@ -70,16 +77,17 @@ exports.handler = async (event) => {
       if (!servicio.personal.includes(seg.personalId)) {
         return resp(400, { error: `${seg.personalId} no realiza ${seg.servicioId}` });
       }
-      if (hhmmToMin(seg.horaInicio) > HORARIO.ultimoInicioMin) {
-        return resp(409, { error: 'Ese servicio inicia después de las 18:00, no está permitido' });
+      const dia = diaSemanaDe(seg.fecha);
+      const ventana = await ventanaDelDia(seg.personalId, dia);
+      if (!ventana) {
+        return resp(409, { error: `${await nombrePersonal(seg.personalId)} no atiende ese día. Elige otra fecha.` });
       }
-      if (seg.fecha === hoyEC && hhmmToMin(seg.horaInicio) < ahoraMinEC) {
+      const inicioMin = hhmmToMin(seg.horaInicio);
+      if (inicioMin < ventana.inicioMin || inicioMin > ventana.finMin) {
+        return resp(409, { error: `Ese horario está fuera del horario de atención de ${await nombrePersonal(seg.personalId)} ese día.` });
+      }
+      if (seg.fecha === hoyEC && inicioMin < ahoraMinEC) {
         return resp(409, { error: `El horario ${seg.horaInicio} ya pasó. Por favor elige otro horario.` });
-      }
-    }
-    for (let i = 1; i < segmentos.length; i++) {
-      if (hhmmToMin(segmentos[i - 1].horaInicio) >= HORARIO.ultimoInicioMin) {
-        return resp(409, { error: 'No se pueden agregar más servicios después del bloque de las 18:00' });
       }
     }
 
@@ -102,12 +110,17 @@ exports.handler = async (event) => {
     }
 
     // --- Cálculo de montos ---
-    const detalle = segmentos.map((seg) => {
+    const detalle = await Promise.all(segmentos.map(async (seg) => {
       const servicio = SERVICIOS.find((s) => s.id === seg.servicioId);
-      return { ...seg, servicioNombre: servicio.nombre, personalNombre: capitalize(seg.personalId), precio: servicio.precio };
-    });
+      return { ...seg, servicioNombre: servicio.nombre, personalNombre: await nombrePersonal(seg.personalId), precio: servicio.precio };
+    }));
     const montoTotal = detalle.reduce((acc, d) => acc + d.precio, 0);
-    const montoAbono = Math.round(montoTotal * PAGO.porcentajeAbono * 100) / 100;
+    // Si el cliente eligió pagar completo, lo transferido es el 100% (no queda
+    // saldo por cobrar en el local). Si eligió abono, se mantiene el 20% de siempre.
+    const montoAbono = tipoPago === 'completo'
+      ? montoTotal
+      : Math.round(montoTotal * PAGO.porcentajeAbono * 100) / 100;
+    const etiquetaTipoPago = tipoPago === 'completo' ? 'Pago completo' : 'Abono 20%';
 
     const reservaId = crypto.randomUUID();
     const ahora = new Date().toISOString();
@@ -115,7 +128,7 @@ exports.handler = async (event) => {
     // --- Guardar cada segmento como una fila ---
     for (let i = 0; i < detalle.length; i++) {
       const d = detalle[i];
-      await appendRow('Reservas!A:T', [
+      await appendRow('Reservas!A:U', [
         reservaId,
         d.fecha,
         d.horaInicio,
@@ -136,6 +149,7 @@ exports.handler = async (event) => {
         ahora,
         'FALSE',
         'FALSE',
+        etiquetaTipoPago, // columna U: "Abono 20%" o "Pago completo" — para que en el local quede claro cuánto falta cobrar
       ]);
     }
 
@@ -151,7 +165,10 @@ exports.handler = async (event) => {
       .join('\n');
 
     const fechaCita = detalle[0].fecha;
-    const saldoPendiente = montoTotal - montoAbono;
+    const saldoPendiente = Math.round((montoTotal - montoAbono) * 100) / 100;
+    const lineaPagoTelegram = tipoPago === 'completo'
+      ? `✅ <b>PAGADO COMPLETO: $${montoAbono.toFixed(2)}</b>\n💵 Saldo a cobrar en el local: <b>$0.00 — NO COBRAR MÁS</b>`
+      : `✅ Abono recibido (20%): <b>$${montoAbono.toFixed(2)}</b>\n💵 Saldo a cobrar en el local: <b>$${saldoPendiente.toFixed(2)}</b>`;
 
     const captionTelegram =
       `🌸 <b>NUEVA CITA CONFIRMADA</b> 🌸\n` +
@@ -164,8 +181,7 @@ exports.handler = async (event) => {
       `${listaServicios}\n\n` +
       `━━━━━━━━━━━━━━━━━━\n` +
       `💰 Total: <b>$${montoTotal.toFixed(2)}</b>\n` +
-      `✅ Abono recibido (20%): <b>$${montoAbono.toFixed(2)}</b>\n` +
-      `💵 Saldo a cobrar en el local: <b>$${saldoPendiente.toFixed(2)}</b>\n\n` +
+      `${lineaPagoTelegram}\n\n` +
       `🧾 Comprobante adjunto 👇\n` +
       `🆔 Reserva: <code>${reservaId}</code>`;
 
@@ -177,14 +193,16 @@ exports.handler = async (event) => {
     });
 
     // --- Email de confirmación al cliente (con comprobante adjunto de respaldo) ---
+    const lineaPagoEmail = tipoPago === 'completo'
+      ? `<b>Pagado por completo:</b> $${montoAbono.toFixed(2)}<br/><b>Saldo a pagar en el local:</b> $0.00`
+      : `<b>Abono pagado (20%):</b> $${montoAbono.toFixed(2)}<br/><b>Saldo a pagar en el local:</b> $${saldoPendiente.toFixed(2)}`;
     const htmlCliente = `
       <div style="font-family:Georgia,serif;color:#4a3025;">
         <h2 style="color:#b08d57;">Luxury Palace — Confirmación de cita</h2>
         <p>Hola ${cliente.nombre}, tu cita quedó <b>confirmada</b>:</p>
         <p>${listaServicios.replace(/<b>|<\/b>/g, '').replace(/\n/g, '<br/>')}</p>
         <p><b>Total:</b> $${montoTotal.toFixed(2)}<br/>
-           <b>Abono pagado (20%):</b> $${montoAbono.toFixed(2)}<br/>
-           <b>Saldo a pagar en el local:</b> $${(montoTotal - montoAbono).toFixed(2)}</p>
+           ${lineaPagoEmail}</p>
         <p>Tiempo máximo de espera: ${require('../../config/servicios').REGLAS.toleranciaEsperaMin} minutos.</p>
         <p>Si necesitas modificar tu cita, hazlo con un mínimo de 2 horas de anticipación
            para no perder el abono.</p>
