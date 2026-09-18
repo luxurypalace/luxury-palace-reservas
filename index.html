@@ -1028,8 +1028,11 @@ document.getElementById('btn-confirmar').addEventListener('click', async () => {
     const lineaPago = saldo > 0.001
       ? `Total $${data.montoTotal.toFixed(2)}, pagaste $${data.montoAbono.toFixed(2)}, saldo en el local $${saldo.toFixed(2)}.`
       : `Total $${data.montoTotal.toFixed(2)}, pagado por completo. No queda saldo pendiente.`;
+    const lineaPropina = data.propina > 0
+      ? ` Vimos que transferiste $${data.montoDetectado.toFixed(2)} — registramos $${data.propina.toFixed(2)} de propina. ¡Gracias! 💛`
+      : '';
     document.getElementById('mensaje-exito').innerHTML =
-      `Te enviamos la confirmación a <b>${email}</b>. ${lineaPago}` +
+      `Te enviamos la confirmación a <b>${email}</b>. ${lineaPago}${lineaPropina}` +
       `<span class="nota-spam">Si no la ves en unos minutos, revisa también tu carpeta de spam o correo no deseado.</span>`;
   } catch (e) {
     aviso.textContent = e.message;
