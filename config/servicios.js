@@ -91,6 +91,34 @@ const HORARIO = {
   diasAtencion: [0, 1, 2, 3, 4, 5, 6], // lunes a domingo (0=domingo en JS Date)
 };
 
+// Horario FIJO de personal específico, definido en código — a propósito NO
+// editable desde el Sheet (así lo pidió Coky, 26-sept-2026: "quiero que lo
+// hagas permanente no con sheet"). Si alguien aparece aquí, esto manda
+// siempre, sin importar lo que tenga la pestaña "Horarios" del Sheet para esa
+// persona. Para cambiarlo en el futuro hay que editar este archivo y volver a
+// subirlo (no basta con editar el Sheet).
+//
+// dia: 0=domingo, 1=lunes, 2=martes, 3=miércoles, 4=jueves, 5=viernes, 6=sábado
+// cierre: hora REAL de cierre — el último inicio de cada servicio se calcula
+//   solo (cierre menos la duración del servicio), no hace falta ponerlo a mano.
+// descanso: opcional, [inicio, fin] — bloque en que no atiende ese día (ej.
+//   una clase). Un día que no aparece en el objeto = no trabaja ese día.
+//
+// Leana: martes a sábado sale a las 16:00 porque entra a otro trabajo; lunes
+// y domingo trabaja el horario completo normal; sábado tiene una clase de
+// 11:00 a 13:00.
+const HORARIOS_FIJOS = {
+  leana: {
+    1: { inicio: '08:00', cierre: '18:00' }, // lunes — normal
+    2: { inicio: '11:00', cierre: '16:00' }, // martes
+    3: { inicio: '08:00', cierre: '16:00' }, // miércoles
+    4: { inicio: '11:00', cierre: '16:00' }, // jueves
+    5: { inicio: '11:00', cierre: '16:00' }, // viernes
+    6: { inicio: '08:00', cierre: '16:00', descanso: ['11:00', '13:00'] }, // sábado — clase 11-1
+    0: { inicio: '08:00', cierre: '18:00' }, // domingo — normal
+  },
+};
+
 const PAGO = {
   porcentajeAbono: 0.20,
   banco: 'Banco Pichincha',
@@ -105,4 +133,4 @@ const REGLAS = {
   minAnticipacionCambioMin: 120, // 2 horas — para modificar sin perder el abono
 };
 
-module.exports = { PERSONAL, CATEGORIAS, SERVICIOS, HORARIO, PAGO, REGLAS };
+module.exports = { PERSONAL, CATEGORIAS, SERVICIOS, HORARIO, HORARIOS_FIJOS, PAGO, REGLAS };
