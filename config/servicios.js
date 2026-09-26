@@ -48,10 +48,12 @@ const SERVICIOS = [
   { id: 'jelly_spa', nombre: 'Jelly spa', categoria: 'unas', duracionMin: 90, precio: 18, personal: ['ana', 'ceci'] },
 
   // ---- Pestañas y cejas (comisión 50%) — Leana ----
-  { id: 'pestanas_extension', nombre: 'Pestañas (extensión)', categoria: 'pestanas_cejas', duracionMin: 90, precio: 25, personal: ['leana'] },
-  { id: 'lifting_pestanas', nombre: 'Lifting de pestañas', categoria: 'pestanas_cejas', duracionMin: 90, precio: 15, personal: ['leana'] },
-  { id: 'laminado_cejas', nombre: 'Laminado de cejas', categoria: 'pestanas_cejas', duracionMin: 90, precio: 15, personal: ['leana'] },
-  { id: 'depilacion_cejas', nombre: 'Depilación de cejas', categoria: 'pestanas_cejas', duracionMin: 90, precio: 8, personal: ['leana'] },
+  // Duraciones reales confirmadas por Coky (sept 2026) — antes todo estaba en
+  // 90 min parejo (placeholder). Pestañas = 2h, cejas = 1h.
+  { id: 'pestanas_extension', nombre: 'Pestañas (extensión)', categoria: 'pestanas_cejas', duracionMin: 120, precio: 25, personal: ['leana'] },
+  { id: 'lifting_pestanas', nombre: 'Lifting de pestañas', categoria: 'pestanas_cejas', duracionMin: 120, precio: 15, personal: ['leana'] },
+  { id: 'laminado_cejas', nombre: 'Laminado de cejas', categoria: 'pestanas_cejas', duracionMin: 60, precio: 15, personal: ['leana'] },
+  { id: 'depilacion_cejas', nombre: 'Depilación de cejas', categoria: 'pestanas_cejas', duracionMin: 60, precio: 8, personal: ['leana'] },
 
   // ---- Cabello — cortes (comisión 40%) — Ceci ----
   { id: 'corte_dama', nombre: 'Corte dama', categoria: 'cabello_cortes', duracionMin: 90, precio: 8, personal: ['ceci'] },
@@ -76,7 +78,10 @@ const SERVICIOS = [
   { id: 'corp_genital_hombre', nombre: 'Genital completo (hombre)', categoria: 'corporal', duracionMin: 90, precio: 16, personal: ['ana', 'ceci'] },
 
   // ---- Faciales — Leana — SIN PRECIO DEFINIDO (placeholder) ----
-  { id: 'facial_basico', nombre: 'Facial (precio por confirmar)', categoria: 'faciales', duracionMin: 90, precio: 0, personal: ['leana'], noOfrecerAunSinPrecio: true },
+  // precio: 0 (o noOfrecerAunSinPrecio: true) hace que el frontend lo muestre
+  // deshabilitado con la etiqueta "Próximamente" — no ofrecer al cliente hasta
+  // ponerle precio real.
+  { id: 'facial_basico', nombre: 'Facial', categoria: 'faciales', duracionMin: 90, precio: 0, personal: ['leana'], noOfrecerAunSinPrecio: true },
 ];
 
 const HORARIO = {
