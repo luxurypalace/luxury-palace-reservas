@@ -84,9 +84,17 @@ exports.handler = async (event) => {
       earliest = ahoraMinEC;
     }
 
+    // Último inicio REAL permitido para ESTE servicio ese día. Si la persona
+    // tiene horario configurado (finEsCierre), ventana.finMin es la hora de
+    // cierre real y hay que restarle la duración del servicio (un servicio de
+    // 2h no puede empezar tan tarde como uno de 1h). Si no (horario general
+    // de siempre), ventana.finMin ya es el último inicio fijo, igual para
+    // cualquier servicio — comportamiento histórico, sin cambios.
+    const limiteInicio = ventana.finEsCierre ? ventana.finMin - servicio.duracionMin : ventana.finMin;
+
     // Regla dura: si ya no se puede iniciar un nuevo segmento antes del cierre
     // de esa persona ese día, no hay más horarios disponibles para agregar.
-    if (earliest > ventana.finMin) {
+    if (earliest > limiteInicio) {
       return resp(200, {
         slots: [],
         bloqueado: true,
@@ -109,11 +117,17 @@ exports.handler = async (event) => {
       .map((b) => ({ inicio: hhmmToMin(b[2]), fin: hhmmToMin(b[3]) }));
 
     const ocupacion = [...ocupados, ...bloqueosDia];
+    // Descanso recurrente configurado en Horarios (ej. una clase entre 11 y
+    // 13) se trata como un bloque ocupado más — así un servicio largo no se
+    // ofrece si su horario terminaría metiéndose en el descanso.
+    if (ventana.descansoInicioMin != null && ventana.descansoFinMin != null) {
+      ocupacion.push({ inicio: ventana.descansoInicioMin, fin: ventana.descansoFinMin });
+    }
 
     // 4) Generar candidatos y filtrar los que chocan con algo ocupado
     const inicioBusqueda = Math.ceil(Math.max(earliest, ventana.inicioMin) / HORARIO.granularidadMin) * HORARIO.granularidadMin;
     const slots = [];
-    for (let t = inicioBusqueda; t <= ventana.finMin; t += HORARIO.granularidadMin) {
+    for (let t = inicioBusqueda; t <= limiteInicio; t += HORARIO.granularidadMin) {
       const finCandidato = t + servicio.duracionMin;
       const choca = ocupacion.some((o) => t < o.fin && finCandidato > o.inicio);
       if (!choca) slots.push(minToHHMM(t));

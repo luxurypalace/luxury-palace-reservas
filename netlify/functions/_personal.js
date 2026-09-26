@@ -14,16 +14,24 @@
 //
 // Pestaña "Horarios" (encabezados en la fila 1, datos desde la fila 2):
 //   A: PersonalID
-//   B: DiaSemana    (0=domingo, 1=lunes, 2=martes, 3=miércoles, 4=jueves,
-//                    5=viernes, 6=sábado)
-//   C: HoraInicio   (formato HH:MM, ej: 08:00)
-//   D: HoraFin      (formato HH:MM — última hora en que puede INICIAR un
-//                    servicio ese día, no la hora de cierre real)
+//   B: DiaSemana      (0=domingo, 1=lunes, 2=martes, 3=miércoles, 4=jueves,
+//                      5=viernes, 6=sábado)
+//   C: HoraInicio     (formato HH:MM, ej: 08:00)
+//   D: HoraCierre     (formato HH:MM — hora REAL de cierre ese día para esa
+//                      persona. El último horario que se ofrece de cada
+//                      servicio se calcula solo: HoraCierre menos la duración
+//                      del servicio. Ej: cierre 16:00, un servicio de 2h no se
+//                      ofrece después de las 14:00; uno de 1h, hasta las 15:00)
+//   E: DescansoInicio (opcional, HH:MM — inicio de un bloque en que NO
+//                      atiende ese día, ej. una clase. Dejar vacío si no
+//                      aplica)
+//   F: DescansoFin    (opcional, HH:MM — fin de ese bloque)
 //
 // Si una persona NO tiene ninguna fila en "Horarios", se le aplica el horario
-// general (config.HORARIO: 08:00–18:00, todos los días). Si SÍ tiene filas
-// pero ninguna para un día en particular, se interpreta que ese día no
-// trabaja (no se ofrecen horarios).
+// general (config.HORARIO: 08:00, último inicio 18:00 fijo para cualquier
+// servicio — comportamiento histórico, sin descanso). Si SÍ tiene filas pero
+// ninguna para un día en particular, se interpreta que ese día no trabaja (no
+// se ofrecen horarios).
 
 const { readRange } = require('./_sheets');
 const { PERSONAL: PERSONAL_FALLBACK, HORARIO } = require('../../config/servicios');
@@ -74,7 +82,7 @@ async function nombrePersonal(id) {
 async function obtenerHorarios() {
   let filas = [];
   try {
-    filas = await readRange('Horarios!A2:D');
+    filas = await readRange('Horarios!A2:F');
   } catch (e) {
     return [];
   }
@@ -84,23 +92,47 @@ async function obtenerHorarios() {
       personalId: f[0],
       dia: parseInt(f[1], 10),
       horaInicio: f[2],
-      horaFin: f[3],
+      horaCierre: f[3],
+      descansoInicio: f[4] || null,
+      descansoFin: f[5] || null,
     }));
 }
 
-// Devuelve { inicioMin, finMin } para ese personal ese día de la semana, o
-// null si ese día no trabaja (solo aplica cuando la persona SÍ tiene filas
+// Devuelve, para ese personal ese día de la semana:
+//   { inicioMin, finMin, descansoInicioMin, descansoFinMin, finEsCierre }
+// o null si ese día no trabaja (solo aplica cuando la persona SÍ tiene filas
 // configuradas en "Horarios" pero ninguna para ese día).
+//
+// finEsCierre distingue dos comportamientos:
+//  - true  (persona CON fila configurada ese día): finMin es la hora REAL de
+//    cierre. Quien use esto debe restarle la duración del servicio para saber
+//    el último inicio permitido, y debe tratar el descanso (si existe) como
+//    un bloque ocupado más.
+//  - false (persona SIN ninguna fila en Horarios, cae al horario general):
+//    finMin es el último inicio fijo de siempre (comportamiento histórico,
+//    igual para cualquier servicio), sin descanso.
 async function ventanaDelDia(personalId, dia) {
   const horarios = await obtenerHorarios();
   const tieneConfiguracion = horarios.some((h) => h.personalId === personalId);
   if (!tieneConfiguracion) {
     // Nadie configuró horario especial para esta persona -> horario general.
-    return { inicioMin: HORARIO.aperturaMin, finMin: HORARIO.ultimoInicioMin };
+    return {
+      inicioMin: HORARIO.aperturaMin,
+      finMin: HORARIO.ultimoInicioMin,
+      descansoInicioMin: null,
+      descansoFinMin: null,
+      finEsCierre: false,
+    };
   }
   const fila = horarios.find((h) => h.personalId === personalId && h.dia === dia);
   if (!fila) return null; // configurado, pero no trabaja ese día
-  return { inicioMin: hhmmToMin(fila.horaInicio), finMin: hhmmToMin(fila.horaFin) };
+  return {
+    inicioMin: hhmmToMin(fila.horaInicio),
+    finMin: hhmmToMin(fila.horaCierre),
+    descansoInicioMin: fila.descansoInicio ? hhmmToMin(fila.descansoInicio) : null,
+    descansoFinMin: fila.descansoFin ? hhmmToMin(fila.descansoFin) : null,
+    finEsCierre: true,
+  };
 }
 
 module.exports = {

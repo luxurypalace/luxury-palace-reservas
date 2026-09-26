@@ -83,9 +83,21 @@ exports.handler = async (event) => {
       if (!ventana) {
         return resp(409, { error: `${await nombrePersonal(seg.personalId)} no atiende ese día. Elige otra fecha.` });
       }
+      // Igual que en disponibilidad.js: si la persona tiene horario propio
+      // configurado (finEsCierre), el límite de inicio depende de la duración
+      // del servicio (finMin ahí es la hora de cierre real, no un último
+      // inicio fijo). Si no, es el último inicio fijo de siempre.
       const inicioMin = hhmmToMin(seg.horaInicio);
-      if (inicioMin < ventana.inicioMin || inicioMin > ventana.finMin) {
+      const limiteInicio = ventana.finEsCierre ? ventana.finMin - servicio.duracionMin : ventana.finMin;
+      if (inicioMin < ventana.inicioMin || inicioMin > limiteInicio) {
         return resp(409, { error: `Ese horario está fuera del horario de atención de ${await nombrePersonal(seg.personalId)} ese día.` });
+      }
+      if (ventana.descansoInicioMin != null && ventana.descansoFinMin != null) {
+        const finMinSeg = hhmmToMin(seg.horaFin);
+        const chocaDescanso = inicioMin < ventana.descansoFinMin && finMinSeg > ventana.descansoInicioMin;
+        if (chocaDescanso) {
+          return resp(409, { error: `Ese horario cae dentro del descanso de ${await nombrePersonal(seg.personalId)} ese día.` });
+        }
       }
       if (seg.fecha === hoyEC && inicioMin < ahoraMinEC) {
         return resp(409, { error: `El horario ${seg.horaInicio} ya pasó. Por favor elige otro horario.` });
