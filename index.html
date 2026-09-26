@@ -150,10 +150,12 @@
     background: rgba(255,255,255,0.35);
   }
   .servicio-row.activo { border-color: var(--dorado); background: rgba(253,246,236,0.75); }
+  .servicio-row.deshabilitado { opacity: 0.45; filter: grayscale(0.7); pointer-events: none; }
   .servicio-info { display: flex; align-items: center; gap: 10px; width: 100%; }
   .servicio-info input[type=checkbox] { width: 18px; height: 18px; accent-color: var(--dorado); flex-shrink: 0; }
   .servicio-nombre { font-weight: 500; flex: 1; }
   .servicio-precio { font-size: 0.85rem; opacity: 0.7; white-space: nowrap; }
+  .etiqueta-proximamente { font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: #8a7566; margin-left: 6px; }
   .personal-select { margin-top: 8px; width: 100%; }
   select, input[type=text], input[type=tel], input[type=email], input[type=date] {
     width: 100%; padding: 11px 12px; border: 1px solid rgba(226,207,184,0.8); border-radius: 10px;
@@ -538,10 +540,10 @@ const SERVICIOS = [
   { id: 'unas_esculpidas', nombre: 'Uñas esculpidas', categoria: 'unas', precio: 25, personal: ['ana','ceci'] },
   { id: 'jelly_spa', nombre: 'Jelly spa', categoria: 'unas', precio: 18, personal: ['ana','ceci'] },
 
-  { id: 'pestanas_extension', nombre: 'Pestañas (extensión)', categoria: 'pestanas_cejas', precio: 25, personal: ['leana'] },
-  { id: 'lifting_pestanas', nombre: 'Lifting de pestañas', categoria: 'pestanas_cejas', precio: 15, personal: ['leana'] },
-  { id: 'laminado_cejas', nombre: 'Laminado de cejas', categoria: 'pestanas_cejas', precio: 15, personal: ['leana'] },
-  { id: 'depilacion_cejas', nombre: 'Depilación de cejas', categoria: 'pestanas_cejas', precio: 8, personal: ['leana'] },
+  { id: 'pestanas_extension', nombre: 'Pestañas (extensión)', categoria: 'pestanas_cejas', precio: 25, duracionMin: 120, personal: ['leana'] },
+  { id: 'lifting_pestanas', nombre: 'Lifting de pestañas', categoria: 'pestanas_cejas', precio: 15, duracionMin: 120, personal: ['leana'] },
+  { id: 'laminado_cejas', nombre: 'Laminado de cejas', categoria: 'pestanas_cejas', precio: 15, duracionMin: 60, personal: ['leana'] },
+  { id: 'depilacion_cejas', nombre: 'Depilación de cejas', categoria: 'pestanas_cejas', precio: 8, duracionMin: 60, personal: ['leana'] },
 
   { id: 'corte_dama', nombre: 'Corte dama', categoria: 'cabello_cortes', precio: 8, personal: ['ceci'] },
   { id: 'cepillado', nombre: 'Cepillado', categoria: 'cabello_cortes', precio: 10, personal: ['ceci'] },
@@ -562,9 +564,9 @@ const SERVICIOS = [
   { id: 'corp_espalda', nombre: 'Espalda', categoria: 'corporal', precio: 16, personal: ['ana','ceci'] },
   { id: 'corp_genital_hombre', nombre: 'Genital completo (hombre)', categoria: 'corporal', precio: 16, personal: ['ana','ceci'] },
 
-  { id: 'facial_basico', nombre: 'Facial (precio por confirmar)', categoria: 'faciales', precio: 0, personal: ['leana'] },
+  { id: 'facial_basico', nombre: 'Facial', categoria: 'faciales', precio: 0, personal: ['leana'] },
 ];
-const DURACION_MIN = 90; // ver nota de duración uniforme en config/servicios.js
+const DURACION_MIN = 90; // duración por defecto para servicios sin duracionMin propio (ver config/servicios.js)
 
 // ---------------------------------------------------------------------------
 // Estado global
@@ -581,8 +583,10 @@ const estado = {
 
 function nombreServicio(id) { return (SERVICIOS.find(s => s.id === id) || {}).nombre || id; }
 function precioServicio(id) { return (SERVICIOS.find(s => s.id === id) || {}).precio || 0; }
+function duracionServicio(id) { const s = SERVICIOS.find(x => x.id === id); return (s && s.duracionMin) || DURACION_MIN; }
 function nombrePersonal(p) { return PERSONAL_NOMBRES[p] || p; }
 function categoriaDeServicio(id) { const s = SERVICIOS.find(x => x.id === id); return s ? s.categoria : null; }
+function servicioDeshabilitado(s) { return !(s.precio > 0); } // sin precio real = "próximamente", no se puede elegir
 
 // ---------------------------------------------------------------------------
 // SPLASH
@@ -627,16 +631,17 @@ function abrirCategoria(catId) {
   const cont = document.getElementById('lista-servicios-categoria');
   cont.innerHTML = '';
   SERVICIOS.filter(s => s.categoria === catId).forEach(s => {
-    const yaEnCarrito = estado.carrito.some(c => c.servicioId === s.id);
+    const deshabilitado = servicioDeshabilitado(s);
+    const yaEnCarrito = !deshabilitado && estado.carrito.some(c => c.servicioId === s.id);
     const row = document.createElement('div');
-    row.className = 'servicio-row' + (yaEnCarrito ? ' activo' : '');
+    row.className = 'servicio-row' + (yaEnCarrito ? ' activo' : '') + (deshabilitado ? ' deshabilitado' : '');
     row.id = `cat-row-${s.id}`;
     const opciones = s.personal.map(p => `<option value="${p}">${nombrePersonal(p)}</option>`).join('');
     row.innerHTML = `
       <div class="servicio-info">
-        <input type="checkbox" data-servicio="${s.id}" ${yaEnCarrito ? 'checked' : ''} />
-        <span class="servicio-nombre">${s.nombre}</span>
-        <span class="servicio-precio">${s.precio > 0 ? '$' + s.precio.toFixed(2) : 'precio por confirmar'}</span>
+        <input type="checkbox" data-servicio="${s.id}" ${yaEnCarrito ? 'checked' : ''} ${deshabilitado ? 'disabled' : ''} />
+        <span class="servicio-nombre">${s.nombre}${deshabilitado ? ' <span class="etiqueta-proximamente">Próximamente</span>' : ''}</span>
+        <span class="servicio-precio">${s.precio > 0 ? '$' + s.precio.toFixed(2) : 'Próximamente'}</span>
       </div>
       <div class="personal-select ${yaEnCarrito ? '' : 'oculto'}" id="cat-personal-${s.id}">
         <select data-personal-de="${s.id}">${opciones}</select>
@@ -861,7 +866,7 @@ function renderSlotsDisponibles(i, slots, fechaSeg) {
       btn.classList.add('elegido');
       const [h, m] = hora.split(':').map(Number);
       const inicioMin = h * 60 + m;
-      const finMin = inicioMin + DURACION_MIN;
+      const finMin = inicioMin + duracionServicio(item.servicioId);
       const horaFin = `${String(Math.floor(finMin/60)).padStart(2,'0')}:${String(finMin%60).padStart(2,'0')}`;
       estado.cadena[i] = { servicioId: item.servicioId, personalId: item.personalId, horaInicio: hora, horaFin, finMin, fecha: fechaSeg };
       estado.cadena.length = i + 1;
