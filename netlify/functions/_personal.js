@@ -34,7 +34,7 @@
 // se ofrecen horarios).
 
 const { readRange } = require('./_sheets');
-const { PERSONAL: PERSONAL_FALLBACK, HORARIO } = require('../../config/servicios');
+const { PERSONAL: PERSONAL_FALLBACK, HORARIO, HORARIOS_FIJOS } = require('../../config/servicios');
 
 function capitalize(s) {
   return s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
@@ -101,17 +101,38 @@ async function obtenerHorarios() {
 // Devuelve, para ese personal ese día de la semana:
 //   { inicioMin, finMin, descansoInicioMin, descansoFinMin, finEsCierre }
 // o null si ese día no trabaja (solo aplica cuando la persona SÍ tiene filas
-// configuradas en "Horarios" pero ninguna para ese día).
+// configuradas en "Horarios" pero ninguna para ese día, o tiene horario FIJO
+// en código y ese día no aparece ahí).
+//
+// Orden de prioridad:
+//  1) HORARIOS_FIJOS en config/servicios.js — horario definido en código,
+//     a propósito NO editable desde el Sheet. Si la persona aparece ahí,
+//     esto manda siempre, ignorando lo que diga la pestaña "Horarios".
+//  2) La pestaña "Horarios" del Sheet, si la persona tiene filas ahí.
+//  3) El horario general (config.HORARIO), si no hay nada de lo anterior.
 //
 // finEsCierre distingue dos comportamientos:
-//  - true  (persona CON fila configurada ese día): finMin es la hora REAL de
-//    cierre. Quien use esto debe restarle la duración del servicio para saber
-//    el último inicio permitido, y debe tratar el descanso (si existe) como
-//    un bloque ocupado más.
-//  - false (persona SIN ninguna fila en Horarios, cae al horario general):
+//  - true  (horario fijo en código, o fila configurada en el Sheet ese día):
+//    finMin es la hora REAL de cierre. Quien use esto debe restarle la
+//    duración del servicio para saber el último inicio permitido, y debe
+//    tratar el descanso (si existe) como un bloque ocupado más.
+//  - false (sin horario fijo ni filas en el Sheet, cae al horario general):
 //    finMin es el último inicio fijo de siempre (comportamiento histórico,
 //    igual para cualquier servicio), sin descanso.
 async function ventanaDelDia(personalId, dia) {
+  const fijo = HORARIOS_FIJOS[personalId];
+  if (fijo) {
+    const fila = fijo[dia];
+    if (!fila) return null; // horario fijo definido, pero no trabaja ese día
+    return {
+      inicioMin: hhmmToMin(fila.inicio),
+      finMin: hhmmToMin(fila.cierre),
+      descansoInicioMin: fila.descanso ? hhmmToMin(fila.descanso[0]) : null,
+      descansoFinMin: fila.descanso ? hhmmToMin(fila.descanso[1]) : null,
+      finEsCierre: true,
+    };
+  }
+
   const horarios = await obtenerHorarios();
   const tieneConfiguracion = horarios.some((h) => h.personalId === personalId);
   if (!tieneConfiguracion) {
